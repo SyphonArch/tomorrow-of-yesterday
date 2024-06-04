@@ -373,6 +373,21 @@ Type 'help' for a list of commands.
         schedule_count = tm.get_schedule_count(task_id)
         print(f'    Total times rescheduled: {schedule_count - 1}\n')
 
+    def do_modify_description(self, arg):
+        """Modify a task's description: modify <task_identifier> <new_description>"""
+        task_identifier = arg
+
+        task_id = self.get_task_id(task_identifier)
+        if task_id is None:
+            print(f"Invalid task identifier '{task_identifier}'\n")
+            return
+
+        print(f'Modifying task {helpers.get_task_string(task_id)}...')
+        new_description = input('Enter the new description: ')
+
+        tm.modify_description(task_id, new_description)
+        print(f'Task modified to {helpers.get_task_string(task_id)}.\n')
+
     def clean_bindings(self):
         """Remove bindings that are no longer valid."""
         for task_identifier, task_id in self.bindings.items():

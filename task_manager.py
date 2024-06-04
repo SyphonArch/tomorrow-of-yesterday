@@ -252,3 +252,18 @@ def get_schedule_count(task_id, after_date=None):
     conn.close()
 
     return count
+
+
+def modify_description(task_id, description):
+    """Modify the description of the task with the given ID."""
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute('''
+    UPDATE tasks
+    SET description = ?
+    WHERE id = ?
+    ''', (description, task_id))
+
+    conn.commit()
+    conn.close()
