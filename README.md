@@ -15,7 +15,11 @@ Built for personal use, to augment due date-based task management with a more ta
 
 ## Setup
 1. Ensure you have Python installed.
-2. Run the application:
+2. Install the required packages:
+   ```sh
+   pip install -r requirements.txt
+   ```
+3. Run the application:
    ```sh
    python main.py
    ```
