@@ -12,6 +12,7 @@ Built for personal use, to augment due date-based task management with a more ta
 - Delete tasks
 - Reschedule tasks
 - Retain task history
+- Evaluate task completion rate
 
 ## Setup
 1. Ensure you have Python installed.
