@@ -191,28 +191,50 @@ Type 'help' for a list of commands.
             print('Usage: add <task_description>\n')
             return
 
-        task_id = tm.create_task(arg)
-        print(f'Task {helpers.get_task_string(task_id)} created and added to buffer.')
         while True:
             schedule_choice = input(f'Schedule task to [T]oday, to[M]orrow, leave in [B]uffer, '
-                                    f'or specify a [D]ate: ').lower()[0]
-            if schedule_choice == 't':
-                tm.schedule_task(task_id, datetime.date.today())
-                print(f'Task #{task_id} scheduled to today.')
-            elif schedule_choice == 'm':
-                tm.schedule_task(task_id, datetime.date.today() + datetime.timedelta(days=1))
-                print(f'Task #{task_id} scheduled to tomorrow.')
-            elif schedule_choice == 'b':
-                # Already in buffer
-                print(f'Task #{task_id} left in buffer.')
-            elif schedule_choice == 'd':
-                new_date = input('Enter the new date (YYYY-MM-DD): ')
-                tm.schedule_task(task_id, datetime.date.fromisoformat(new_date))
-                print(f'Task #{task_id} scheduled to {new_date}.')
-            else:
-                print('Invalid choice. Please try again.')
-                continue
-            break
+                                    f'specify a [D]ate or an [O]ffset from today?'
+                                    f'\nYour choice: ').lower()
+            if len(schedule_choice) == 1 and schedule_choice[0] in ('t', 'm', 'b', 'd', 'o'):
+                break
+            print('Invalid choice. Please try again.')
+
+        if schedule_choice == 't':
+            task_id = tm.create_task(arg)
+            tm.schedule_task(task_id, datetime.date.today())
+            print(f'Task {helpers.get_task_string(task_id)} scheduled to today.')
+        elif schedule_choice == 'm':
+            task_id = tm.create_task(arg)
+            tm.schedule_task(task_id, datetime.date.today() + datetime.timedelta(days=1))
+            print(f'Task {helpers.get_task_string(task_id)} scheduled to tomorrow.')
+        elif schedule_choice == 'b':
+            task_id = tm.create_task(arg)
+            print(f'Task {helpers.get_task_string(task_id)} left in buffer.')
+        elif schedule_choice == 'd':
+            while True:
+                try:
+                    new_date = input('Enter the date (YYMMDD): ')
+                    date = datetime.datetime.strptime(new_date, '%y%m%d').date()
+                    task_id = tm.create_task(arg)
+                    tm.schedule_task(task_id, date)
+                    print(f'Task {helpers.get_task_string(task_id)} scheduled to {new_date}.')
+                    break
+                except ValueError:
+                    print('Invalid date. Please try again.')
+        elif schedule_choice == 'o':
+            while True:
+                try:
+                    offset = int(input('Enter the offset from today: '))
+                    date = datetime.date.today() + datetime.timedelta(days=offset)
+                    task_id = tm.create_task(arg)
+                    tm.schedule_task(task_id, date)
+                    print(f'Task {helpers.get_task_string(task_id)} scheduled to '
+                          f'{helpers.get_day_string(datetime.date.today(), date)}.')
+                    break
+                except ValueError:
+                    print('Invalid offset. Please try again.')
+        else:
+            raise RuntimeError('This code should be unreachable.')
         print()
 
     def do_completed(self, arg):
@@ -390,9 +412,13 @@ Type 'help' for a list of commands.
 
     def clean_bindings(self):
         """Remove bindings that are no longer valid."""
+        # Use double loop to avoid modifying the dictionary while iterating over it
+        to_remove = []
         for task_identifier, task_id in self.bindings.items():
             if tm.get_task(task_id) is None:
-                del self.bindings[task_identifier]
+                to_remove.append(task_identifier)
+        for task_identifier in to_remove:
+            del self.bindings[task_identifier]
 
     def do_quit(self, arg):
         """Quit the task manager"""
