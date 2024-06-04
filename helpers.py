@@ -7,7 +7,7 @@ def get_task_string(task_id):
     task = tm.get_task(task_id)
     if task is None:
         return f'[#{task_id}: Task not found]'
-    return f'[#{task_id}: {task['description']}]'
+    return f'[#{task_id}: {task["description"]}]'
 
 
 def get_day_string(today, date):
