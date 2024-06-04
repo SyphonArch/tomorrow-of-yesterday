@@ -78,7 +78,7 @@ Type 'help' for a list of commands.
         return line
 
     def do_list(self, arg):
-        """List all tasks"""
+        """List tasks: list <offset_start> <offset_end> or simply list"""
         if arg:
             args = arg.split()
             assert len(args) == 2, 'Usage: list <offset_start> <offset_end>'
@@ -186,7 +186,11 @@ Type 'help' for a list of commands.
         self.bindings = bindings
 
     def do_add(self, arg):
-        """Add a new task"""
+        """Add a new task. Usage: add <task_description>"""
+        if arg == '':
+            print('Usage: add <task_description>\n')
+            return
+
         task_id = tm.create_task(arg)
         print(f'Task {helpers.get_task_string(task_id)} created and added to buffer.')
         while True:
