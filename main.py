@@ -6,6 +6,8 @@ import datetime
 import json
 import helpers
 import termcolor
+import signal
+import sys
 
 # Make auto-completion work on Mac OS X.
 if 'libedit' in readline.__doc__:
@@ -435,7 +437,13 @@ Type 'help' for a list of commands.
 
 
 if __name__ == '__main__':
-    import sys
-
     app = ToYCLI()
+
+
+    def sigint_handler(*_):  # Handle Ctrl+C
+        app.terminate()
+        sys.exit(0)
+
+
+    signal.signal(signal.SIGINT, sigint_handler)
     sys.exit(app.cmdloop())
