@@ -106,10 +106,14 @@ Type 'help' for a list of commands.
             elif scheduled_date > cuttoff_date_end:
                 unlisted_tasks.append(task)
 
+        # Sort the tasks by scheduled date
+        overdue_tasks = sorted(overdue_tasks, key=lambda x: x['scheduled_date'])
+        unlisted_tasks = sorted(unlisted_tasks, key=lambda x: x['scheduled_date'])
+
         # Print overdue tasks
         if overdue_tasks:
             print(termcolor.colored('>> Unfinished tasks from previous days <<', 'red'))
-            for i, task in enumerate(unfinished_tasks):
+            for i, task in enumerate(overdue_tasks):
                 task_id = task['id']
                 task_string = helpers.get_task_string(task_id)
                 task_identifier = f'!{i}'
