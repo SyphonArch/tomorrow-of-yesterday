@@ -256,6 +256,8 @@ Type 'help' for a list of commands.
             print(f'Task {helpers.get_task_string(task_id)} already completed.\n')
             return
 
+        input(f'Mark {helpers.get_task_string(task_id)} as done?'
+               '\nPress <enter> to continue or Ctrl-C to abort.')
         tm.mark_task_completed(task_id)
         print(f'Task {helpers.get_task_string(task_id)} marked as done.\n')
 
