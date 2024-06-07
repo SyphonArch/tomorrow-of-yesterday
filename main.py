@@ -112,14 +112,14 @@ Type 'help' for a list of commands.
 
         # Print overdue tasks
         if overdue_tasks:
-            print(termcolor.colored('>> Unfinished tasks from previous days <<', 'red'))
+            print(termcolor.colored('>> Unfinished tasks from previous days <<', 'light_red'))
             for i, task in enumerate(overdue_tasks):
                 task_id = task['id']
                 task_string = helpers.get_task_string(task_id)
                 task_identifier = f'!{i}'
                 bindings[task_identifier] = task_id
                 scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
-                task_string = termcolor.colored(task_string, 'red')
+                task_string = termcolor.colored(task_string, 'light_red')
                 print(f'{task_identifier}. {task_string} | {helpers.get_day_string(today, scheduled_date)}')
             print()
 
@@ -161,6 +161,25 @@ Type 'help' for a list of commands.
                 print(f'{task_identifier}. {task_string} {status}')
             if remaining_scheduled_task_count == 0:
                 print(termcolor.colored('~ You have completed the day! Yay! ~', 'green', 'on_black'))
+
+            potentially_rescheduled_tasks = tm.get_all_tasks_ever_scheduled_to_date(date)
+            rescheduled_tasks = [task for task in potentially_rescheduled_tasks if
+                                 task['scheduled_date'] != date.isoformat()]
+            assert all(task['status'] in ('scheduled', 'buffered') for task in rescheduled_tasks)
+
+            # Print rescheduled tasks
+            if rescheduled_tasks:
+                print(termcolor.colored('-- Rescheduled tasks --', 'dark_grey'))
+                for i, task in enumerate(rescheduled_tasks):
+                    task_id = task['id']
+                    task_string = helpers.get_task_string(task_id)
+                    if task['status'] == 'scheduled':
+                        date_string_or_buffered = helpers.get_day_string(today, datetime.date.fromisoformat(
+                            task['scheduled_date']))
+                    else:
+                        date_string_or_buffered = 'buffered'
+                    print(termcolor.colored(f'{task_string} | {date_string_or_buffered}',
+                                            'dark_grey'))
             print()
 
         # Print unlisted tasks
@@ -257,7 +276,7 @@ Type 'help' for a list of commands.
             return
 
         input(f'Mark {helpers.get_task_string(task_id)} as done?'
-               '\nPress <enter> to continue or Ctrl-C to abort.')
+              '\nPress <enter> to continue or Ctrl-C to abort.')
         tm.mark_task_completed(task_id)
         print(f'Task {helpers.get_task_string(task_id)} marked as done.\n')
 
