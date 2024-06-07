@@ -395,16 +395,17 @@ Type 'help' for a list of commands.
                         completed_another_day_count += 1
 
         print(f'Evaluation for the interval {offset_start} to {offset_end} days from today:')
-        print(f'    Total number of schedule events: {scheduled_count}')
-        print(f'    Completed on the scheduled day: {completed_that_day_count} '
+        print()
+        print(f'Total number of schedule events: {scheduled_count:>6}')
+        print(f'Completed on the scheduled day:  {completed_that_day_count:>6} '
               f'({completed_that_day_count / scheduled_count:.0%})')
-        print(f'    Completed on another day: {completed_another_day_count} '
+        print(f'Completed on another day:        {completed_another_day_count:>6} '
               f'({completed_another_day_count / scheduled_count:.0%})')
-        print(f'    Made irrelevant: {made_irrelevant_count} '
+        print(f'Made irrelevant:                 {made_irrelevant_count:>6} '
               f'({made_irrelevant_count / scheduled_count:.0%})')
-        print(f'    Buffered: {made_buffered_count} '
+        print(f'Buffered:                        {made_buffered_count:>6} '
               f'({made_buffered_count / scheduled_count:.0%})')
-        print(f'    Incomplete: {incomplete_count} '
+        print(f'Incomplete:                      {incomplete_count:>6} '
               f'({incomplete_count / scheduled_count:.0%})')
 
     def do_task(self, arg):
@@ -426,7 +427,7 @@ Type 'help' for a list of commands.
 
         print()
         scheduling_events = tm.get_schedule_events(task_id)
-        print(f'    Total times scheduled: {len(scheduling_events):>9}')
+        print(f'    Total times scheduled: {len(scheduling_events)}')
         for i, event in enumerate(scheduling_events):
             date = datetime.date.fromisoformat(event['scheduled_date'])
             print(f'        {i + 1}. {helpers.get_day_string(datetime.date.today(), date)}')
