@@ -124,7 +124,7 @@ def schedule_task(task_id, scheduled_date):
 
     c.execute('''
     INSERT INTO task_events (task_id, event_type, event_date, scheduled_date)
-    VALUES (?, 'Scheduled', DATE('now'), ?)
+    VALUES (?, 'scheduled', DATE('now'), ?)
     ''', (task_id, scheduled_date))
     event_id = c.lastrowid
 
@@ -229,9 +229,8 @@ def get_all_tasks_ever_scheduled_to_date(date):
     return [get_task(task_id[0]) for task_id in task_ids]
 
 
-def get_schedule_count(task_id, after_date=None):
-    """Return the number of times the task with the given ID has been scheduled.
-    Does not include the initial scheduling."""
+def get_schedule_events(task_id, after_date=None):
+    """Return all scheduling events for the task with the given ID."""
     if after_date is None:
         after_date = datetime.date(1, 1, 1)  # A date before the beginning of time
 
@@ -242,16 +241,16 @@ def get_schedule_count(task_id, after_date=None):
     c = conn.cursor()
 
     c.execute('''
-    SELECT COUNT(*)
+    SELECT *
     FROM task_events
     WHERE task_id = ?
     AND scheduled_date > ?
     ''', (task_id, after_date))
-    count = c.fetchone()[0]
+    task_events = c.fetchall()
 
     conn.close()
 
-    return count
+    return task_events
 
 
 def modify_description(task_id, description):

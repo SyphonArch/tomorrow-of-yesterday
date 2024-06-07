@@ -60,6 +60,8 @@ Type 'help' for a list of commands.
 
     def get_task_id(self, arg):
         """Get the task ID from the argument."""
+        if not arg:
+            return None
         if arg[0] == '#':
             return int(arg[1:])
         else:
@@ -165,7 +167,6 @@ Type 'help' for a list of commands.
             potentially_rescheduled_tasks = tm.get_all_tasks_ever_scheduled_to_date(date)
             rescheduled_tasks = [task for task in potentially_rescheduled_tasks if
                                  task['scheduled_date'] != date.isoformat()]
-            assert all(task['status'] in ('scheduled', 'buffered') for task in rescheduled_tasks)
 
             # Print rescheduled tasks
             if rescheduled_tasks:
@@ -177,7 +178,7 @@ Type 'help' for a list of commands.
                         date_string_or_buffered = helpers.get_day_string(today, datetime.date.fromisoformat(
                             task['scheduled_date']))
                     else:
-                        date_string_or_buffered = 'buffered'
+                        date_string_or_buffered = task['status']
                     print(termcolor.colored(f'{task_string} | {date_string_or_buffered}',
                                             'dark_grey'))
             print()
@@ -406,8 +407,8 @@ Type 'help' for a list of commands.
         print(f'    Incomplete: {incomplete_count} '
               f'({incomplete_count / scheduled_count:.0%})')
 
-    def do_reschedule_count(self, arg):
-        """Evaluate a specific task: task_evaluate <task_identifier>"""
+    def do_task(self, arg):
+        """Get information about a task: task <task_identifier>"""
         task_id = self.get_task_id(arg)
         if task_id is None:
             print(f"Invalid task identifier '{arg}'\n")
@@ -417,10 +418,20 @@ Type 'help' for a list of commands.
         assert task is not None, f"Task {task_id} not found"
         task_string = helpers.get_task_string(task_id)
 
-        print(f'Evaluating task {task_string}...')
+        print(f'Evaluating task {task_string}')
+        print(f'    Created on: {task["created_date"]:>20}')
+        print(f'    Status: {task["status"]:>24}')
+        if task['status'] != 'buffered':
+            print(f'    Scheduled for: {task["scheduled_date"]:>17}')
 
-        schedule_count = tm.get_schedule_count(task_id)
-        print(f'    Total times rescheduled: {schedule_count - 1}\n')
+        print()
+        scheduling_events = tm.get_schedule_events(task_id)
+        print(f'    Total times scheduled: {len(scheduling_events):>9}')
+        for i, event in enumerate(scheduling_events):
+            date = datetime.date.fromisoformat(event['scheduled_date'])
+            print(f'        {i + 1}. {helpers.get_day_string(datetime.date.today(), date)}')
+
+        print()
 
     def do_modify_description(self, arg):
         """Modify a task's description: modify <task_identifier> <new_description>"""
