@@ -82,16 +82,20 @@ Type 'help' for a list of commands.
         return line
 
     def do_list(self, arg):
-        """List tasks: list <offset_start> <offset_end> or simply list"""
+        """List tasks: list <offset_start> <optional:offset_end> or simply list"""
         if arg:
             args = arg.split()
-            if len(args) != 2:
-                print('Usage: list <offset_start> <offset_end>')
+            if len(args) not in (1, 2):
+                print('Usage: list <offset_start> <optional:offset_end>')
                 return
             try:
-                offset_start, offset_end = map(int, args)
+                if len(args) == 1:
+                    offset_start = int(args[0])
+                    offset_end = offset_start
+                else:
+                    offset_start, offset_end = map(int, args)
             except ValueError:
-                print('Usage: list <offset_start> <offset_end>')
+                print('Usage: list <offset_start> <optional:offset_end>')
                 return
         else:
             offset_start, offset_end = self.config['default_day_offset_start'], self.config['default_day_offset_end']
