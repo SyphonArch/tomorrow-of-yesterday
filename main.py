@@ -85,11 +85,19 @@ Type 'help' for a list of commands.
         """List tasks: list <offset_start> <offset_end> or simply list"""
         if arg:
             args = arg.split()
-            assert len(args) == 2, 'Usage: list <offset_start> <offset_end>'
-            offset_start, offset_end = map(int, args)
+            if len(args) != 2:
+                print('Usage: list <offset_start> <offset_end>')
+                return
+            try:
+                offset_start, offset_end = map(int, args)
+            except ValueError:
+                print('Usage: list <offset_start> <offset_end>')
+                return
         else:
             offset_start, offset_end = self.config['default_day_offset_start'], self.config['default_day_offset_end']
-        assert offset_start <= offset_end, 'offset_start must be less than or equal to offset_end'
+        if offset_start > offset_end:
+            print('offset_start must be less than or equal to offset_end')
+            return
 
         bindings = {}
 
@@ -362,8 +370,14 @@ Type 'help' for a list of commands.
         if len(args) != 2:
             print('Usage: evaluate <offset_start> <offset_end>\n')
             return
-        offset_start, offset_end = map(int, args)
-        assert offset_start <= offset_end, 'offset_start must be less than or equal to offset_end'
+        try:
+            offset_start, offset_end = map(int, args)
+        except ValueError:
+            print('Usage: evaluate <offset_start> <offset_end>\n')
+            return
+        if offset_start > offset_end:
+            print('offset_start must be less than or equal to offset_end')
+            return
 
         today = datetime.date.today()
 
