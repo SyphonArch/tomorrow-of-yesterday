@@ -40,6 +40,15 @@ def mark_task_completed(task_id):
     conn = get_connection()
     c = conn.cursor()
 
+    # Check if the task is scheduled
+    c.execute('''
+    SELECT status
+    FROM tasks
+    WHERE id = ?
+    ''', (task_id,))
+    status = c.fetchone()
+    assert status[0] == 'scheduled', 'You can only mark a task as completed if it is scheduled'
+
     c.execute('''
     INSERT INTO task_events (task_id, event_type, event_date)
     VALUES (?, 'completed', DATE('now'))

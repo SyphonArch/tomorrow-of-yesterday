@@ -286,10 +286,10 @@ Type 'help' for a list of commands.
             print(f"Invalid task identifier '{arg}'\n")
             return
 
-        # Check if the task is already completed
+        # Check if the task is scheduled
         task = tm.get_task(task_id)
-        if task['status'] == 'completed':
-            print(f'Task {helpers.get_task_string(task_id)} already completed.\n')
+        if task['status'] != 'scheduled':
+            print(f'Task {helpers.get_task_string(task_id)} needs to be scheduled to be marked as done.\n')
             return
 
         input(f'Mark {helpers.get_task_string(task_id)} as done?'
@@ -391,36 +391,55 @@ Type 'help' for a list of commands.
 
         scheduled_count = 0
         completed_that_day_count = 0
+        completed_next_day_count = 0
         completed_another_day_count = 0
         made_irrelevant_count = 0
         made_buffered_count = 0
         incomplete_count = 0
 
+        all_tasks = {}
+
+        # Collect all tasks that were ever scheduled to the given interval
+        # Don't count the same task multiple times
         for day_offset in range(offset_start, offset_end + 1):
             date = today + datetime.timedelta(days=day_offset)
             tasks = tm.get_all_tasks_ever_scheduled_to_date(date)
             for task in tasks:
-                scheduled_count += 1
-                if task['status'] == 'irrelevant':
-                    made_irrelevant_count += 1
-                elif task['status'] == 'buffered':
-                    made_buffered_count += 1
-                elif task['status'] == 'scheduled':
-                    incomplete_count += 1
+                if task['id'] not in all_tasks:
+                    all_tasks[task['id']] = task
+
+        # Evaluate the tasks
+        for task_id, task in all_tasks.items():
+            scheduled_count += 1
+            if task['status'] == 'irrelevant':
+                made_irrelevant_count += 1
+            elif task['status'] == 'buffered':
+                made_buffered_count += 1
+            elif task['status'] == 'scheduled':
+                incomplete_count += 1
+            else:
+                assert task['status'] == 'completed', f"Task {task['id']} has invalid status {task['status']}"
+                # Get the first scheduled date
+                task_schedule_events = tm.get_schedule_events(task_id)
+                task_schedule_events.sort(key=lambda x: x['scheduled_date'])
+                first_scheduled_date = datetime.date.fromisoformat(task_schedule_events[0]['scheduled_date'])
+                # check when the final scheduled date was
+                scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
+                diff = scheduled_date - first_scheduled_date
+                if diff.days == 0:
+                    completed_that_day_count += 1
+                elif diff.days == 1:
+                    completed_next_day_count += 1
                 else:
-                    assert task['status'] == 'completed', f"Task {task['id']} has invalid status {task['status']}"
-                    # check when the final scheduled date was
-                    scheduled_date = task['scheduled_date']
-                    if scheduled_date == date.isoformat():
-                        completed_that_day_count += 1
-                    else:
-                        completed_another_day_count += 1
+                    completed_another_day_count += 1
 
         print(f'Evaluation for the interval {offset_start} to {offset_end} days from today:')
         print()
-        print(f'Total number of schedule events: {scheduled_count:>6}')
-        print(f'Completed on the scheduled day:  {completed_that_day_count:>6} '
+        print(f'Total number of tasks scheduled: {scheduled_count:>6}')
+        print(f'Completed on first day:          {completed_that_day_count:>6} '
               f'({completed_that_day_count / scheduled_count:.0%})')
+        print(f'Completed on next day:           {completed_next_day_count:>6} '
+                f'({completed_next_day_count / scheduled_count:.0%})')
         print(f'Completed on another day:        {completed_another_day_count:>6} '
               f'({completed_another_day_count / scheduled_count:.0%})')
         print(f'Made irrelevant:                 {made_irrelevant_count:>6} '
