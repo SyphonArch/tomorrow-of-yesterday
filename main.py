@@ -1,19 +1,23 @@
 import cmd
 import task_manager as tm
 import database
-import readline
+import sys
 import datetime
 import json
 import helpers
 import termcolor
 import signal
-import sys
 
-# Make auto-completion work on Mac OS X.
-if 'libedit' in readline.__doc__:
-    readline.parse_and_bind("bind ^I rl_complete")
-else:
-    readline.parse_and_bind("tab: complete")
+try:
+    import readline
+
+    # Make auto-completion work on Mac OS X.
+    if 'libedit' in readline.__doc__:
+        readline.parse_and_bind("bind ^I rl_complete")
+    else:
+        readline.parse_and_bind("tab: complete")
+except ImportError:
+    print("No readline support; Autocomplete disabled.", file=sys.stderr)
 
 
 class ToYCLI(cmd.Cmd):
@@ -356,8 +360,8 @@ Type 'help' for a list of commands.
 
         # Check original scheduled_date
         task = tm.get_task(task_id)
-
-        original_date = datetime.date.fromisoformat(task['scheduled_date'])
+        original_date = datetime.date.fromisoformat(task['scheduled_date']) \
+            if task['scheduled_date'] is not None else None
 
         if date == original_date and task['status'] == 'scheduled':
             print(f'Task {helpers.get_task_string(task_id)} already scheduled to '
