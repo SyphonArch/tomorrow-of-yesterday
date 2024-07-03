@@ -178,7 +178,7 @@ Type 'help' for a list of commands.
                     task_string = termcolor.colored(task_string, 'yellow')
                 print(f'{task_identifier}. {task_string} {status}')
             if remaining_scheduled_task_count == 0:
-                print(termcolor.colored('~ You have completed the day! Yay! ~', 'green', 'on_black'))
+                print(termcolor.colored('~ You have completed the day! Yay! >.< ~', 'green', 'on_black'))
 
             potentially_rescheduled_tasks = tm.get_all_tasks_ever_scheduled_to_date(date)
             rescheduled_tasks = [task for task in potentially_rescheduled_tasks if
@@ -190,9 +190,8 @@ Type 'help' for a list of commands.
                 for i, task in enumerate(rescheduled_tasks):
                     task_id = task['id']
                     task_string = helpers.get_task_string(task_id)
-                    if task['status'] == 'scheduled':
-                        date_string_or_buffered = helpers.get_day_string(today, datetime.date.fromisoformat(
-                            task['scheduled_date']))
+                    if task['status'] in ('scheduled', 'completed'):
+                        date_string_or_buffered = f"{task['status']} {task['scheduled_date']}"
                     else:
                         date_string_or_buffered = task['status']
                     print(termcolor.colored(f'{task_string} | {date_string_or_buffered}',
@@ -326,6 +325,10 @@ Type 'help' for a list of commands.
             print(f'Task {helpers.get_task_string(task_id)} already in buffer.\n')
             return
 
+        # Confirm
+        print(f'Move task {helpers.get_task_string(task_id)} to buffer?')
+        input('Press <enter> to continue or Ctrl-C to abort.')
+
         tm.buffer_task(task_id)
         print(f'Task {helpers.get_task_string(task_id)} moved to buffer.\n')
 
@@ -336,6 +339,13 @@ Type 'help' for a list of commands.
             print(f"Invalid task identifier '{arg}'\n")
             return
         task_string = helpers.get_task_string(task_id)  # Get the task string before removing the task
+
+        # Confirm the task removal
+        print('Warning: This action cannot be undone! Only remove a task if it was added by mistake.')
+        print('If you want to remove a task that is no longer relevant, mark it as irrelevant instead.')
+        print(f'Remove task {task_string}?')
+        input('Press <enter> to continue or Ctrl-C to abort.')
+
         tm.remove_task(task_id)
         print(f'Task {task_string} removed.\n')
 
@@ -368,6 +378,11 @@ Type 'help' for a list of commands.
                   f'{helpers.get_day_string(today, date)}.\n')
             return
 
+        # Confirm the task scheduling
+        print(f'Schedule task {helpers.get_task_string(task_id)} to {helpers.get_day_string(today, date)}?')
+        input('Press <enter> to continue or Ctrl-C to abort.')
+
+        # Schedule the task
         tm.schedule_task(task_id, date)
         print(f'Task {helpers.get_task_string(task_id)} scheduled to '
               f'{helpers.get_day_string(today, date)}.\n')
