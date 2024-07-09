@@ -29,7 +29,7 @@ def get_day_string(today, date):
     elif -6 <= day_offset <= -3:
         name = f"{-day_offset} days ago"
     else:
-        name = ''
+        return iso
     return f'{name} ({iso})'
 
 

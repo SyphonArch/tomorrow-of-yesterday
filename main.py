@@ -466,7 +466,12 @@ Type 'help' for a list of commands.
 
     def do_task(self, arg):
         """Get information about a task: task <task_identifier>"""
+        if arg == '':
+            print('Usage: task <task_identifier>\n')
+            return
+
         task_id = self.get_task_id(arg)
+
         if task_id is None:
             print(f"Invalid task identifier '{arg}'\n")
             return
