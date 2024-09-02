@@ -353,7 +353,7 @@ Type 'help' for a list of commands.
         """Schedule a task: schedule <task_identifier> <new_date>"""
         parts = arg.split()
         if len(parts) != 2:
-            print('Usage: reschedule <task_identifier> <days_offset or new_date: YYYY-MM-DD>\n')
+            print('Usage: schedule <task_identifier> <days_offset or new_date: YYYY-MM-DD>\n')
             return
         task_identifier, days_offset_or_date = parts
         today = datetime.date.today()
