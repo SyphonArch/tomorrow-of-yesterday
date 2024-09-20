@@ -309,6 +309,9 @@ Type 'help' for a list of commands.
             print(f'Task {helpers.get_task_string(task_id)} already marked as irrelevant.\n')
             return
 
+        input(f'Mark {helpers.get_task_string(task_id)} as irrelevant?'
+              '\nPress <enter> to continue or Ctrl-C to abort.')
+
         tm.mark_task_irrelevant(task_id)
         print(f'Task {helpers.get_task_string(task_id)} marked as irrelevant.\n')
 
