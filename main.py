@@ -112,16 +112,16 @@ Type 'help' for a list of commands.
         today = datetime.date.today()
 
         # Check for overdue tasks and tasks that are too far in the future
-        cuttoff_date_start = today + datetime.timedelta(days=offset_start)
-        cuttoff_date_end = today + datetime.timedelta(days=offset_end)
+        cutoff_date_start = today + datetime.timedelta(days=offset_start)
+        cutoff_date_end = today + datetime.timedelta(days=offset_end)
         unfinished_tasks = tm.get_unfinished_tasks()
         overdue_tasks = []
         unlisted_tasks = []
         for task in unfinished_tasks:
             scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
-            if scheduled_date < cuttoff_date_start:
+            if scheduled_date < cutoff_date_start:
                 overdue_tasks.append(task)
-            elif scheduled_date > cuttoff_date_end:
+            elif scheduled_date > cutoff_date_end:
                 unlisted_tasks.append(task)
 
         # Sort the tasks by scheduled date
@@ -153,7 +153,7 @@ Type 'help' for a list of commands.
                 print('Nothing to do!\n')
                 continue
 
-            # sort the tasks so that 'scheduled' tasks are before 'irrelevant' tasks, and 'completed' tasks are last
+            # Sort the tasks so that 'scheduled' tasks are before 'irrelevant' tasks, and 'completed' tasks are last
             tasks = sorted(tasks,
                            key=lambda x: 0 if x['status'] == 'scheduled' else 1 if x['status'] == 'irrelevant' else 2)
 
@@ -174,8 +174,6 @@ Type 'help' for a list of commands.
                 else:
                     assert task['status'] == 'irrelevant'
                     task_string = termcolor.colored(task_string, 'cyan')
-
-                    task_string = termcolor.colored(task_string, 'yellow')
                 print(f'{task_identifier}. {task_string} {status}')
             if remaining_scheduled_task_count == 0:
                 print(termcolor.colored('~ You have completed the day! Yay! >.< ~', 'green', 'on_black'))
@@ -233,50 +231,35 @@ Type 'help' for a list of commands.
             return
 
         while True:
-            schedule_choice = input(f'Schedule task to [T]oday, to[M]orrow, leave in [B]uffer, '
-                                    f'specify a [D]ate or an [O]ffset from today?'
-                                    f'\nYour choice: ').lower()
-            if len(schedule_choice) == 1 and schedule_choice[0] in ('t', 'm', 'b', 'd', 'o'):
+            schedule_choice = input("Enter the date to schedule the task (h for hints): ").strip()
+            if schedule_choice.lower() == 'h':
+                self.print_date_format_hints()
+                continue
+            date_or_buffer = parse_date_or_buffer(schedule_choice)
+            if date_or_buffer is not None:
                 break
-            print('Invalid choice. Please try again.')
+            else:
+                print('Invalid date format. Please try again or enter "h" for hints.')
 
-        if schedule_choice == 't':
-            task_id = tm.create_task(arg)
-            tm.schedule_task(task_id, datetime.date.today())
-            print(f'Task {helpers.get_task_string(task_id)} scheduled to today.')
-        elif schedule_choice == 'm':
-            task_id = tm.create_task(arg)
-            tm.schedule_task(task_id, datetime.date.today() + datetime.timedelta(days=1))
-            print(f'Task {helpers.get_task_string(task_id)} scheduled to tomorrow.')
-        elif schedule_choice == 'b':
-            task_id = tm.create_task(arg)
-            print(f'Task {helpers.get_task_string(task_id)} left in buffer.')
-        elif schedule_choice == 'd':
-            while True:
-                try:
-                    new_date = input('Enter the date (YYMMDD): ')
-                    date = datetime.datetime.strptime(new_date, '%y%m%d').date()
-                    task_id = tm.create_task(arg)
-                    tm.schedule_task(task_id, date)
-                    print(f'Task {helpers.get_task_string(task_id)} scheduled to {new_date}.')
-                    break
-                except ValueError:
-                    print('Invalid date. Please try again.')
-        elif schedule_choice == 'o':
-            while True:
-                try:
-                    offset = int(input('Enter the offset from today: '))
-                    date = datetime.date.today() + datetime.timedelta(days=offset)
-                    task_id = tm.create_task(arg)
-                    tm.schedule_task(task_id, date)
-                    print(f'Task {helpers.get_task_string(task_id)} scheduled to '
-                          f'{helpers.get_day_string(datetime.date.today(), date)}.')
-                    break
-                except ValueError:
-                    print('Invalid offset. Please try again.')
+        # Confirm the date or buffer before creating the task
+        if date_or_buffer == 'buffer':
+            print(f'Add task "{arg}" to buffer?')
         else:
-            raise RuntimeError('This code should be unreachable.')
-        print()
+            date = date_or_buffer
+            print(f'Schedule task "{arg}" to '
+                  f'{helpers.get_day_string(datetime.date.today(), date)}?')
+
+        input('Press <enter> to confirm or Ctrl-C to abort.')
+
+        # Only create the task after a valid date or buffer is confirmed
+        task_id = tm.create_task(arg)
+
+        if date_or_buffer == 'buffer':
+            print(f'Task {helpers.get_task_string(task_id)} left in buffer.')
+        else:
+            tm.schedule_task(task_id, date)
+            print(f'Task {helpers.get_task_string(task_id)} scheduled to '
+                  f'{helpers.get_day_string(datetime.date.today(), date)}.')
 
     def do_completed(self, arg):
         """Mark task as completed: completed <task_identifier>"""
@@ -353,42 +336,48 @@ Type 'help' for a list of commands.
         print(f'Task {task_string} removed.\n')
 
     def do_schedule(self, arg):
-        """Schedule a task: schedule <task_identifier> <new_date>"""
-        parts = arg.split()
-        if len(parts) != 2:
-            print('Usage: schedule <task_identifier> <days_offset or new_date: YYYY-MM-DD>\n')
-            return
-        task_identifier, days_offset_or_date = parts
-        today = datetime.date.today()
-        if days_offset_or_date.isdigit() or days_offset_or_date[0] == '-' and days_offset_or_date[1:].isdigit():
-            days_offset = int(days_offset_or_date)
-            date = today + datetime.timedelta(days=days_offset)
-        else:
-            date = datetime.date.fromisoformat(days_offset_or_date)
-
-        task_id = self.get_task_id(task_identifier)
+        """Schedule a task: schedule <task_identifier>"""
+        task_id = self.get_task_id(arg)
         if task_id is None:
-            print(f"Invalid task identifier '{task_identifier}'\n")
+            print(f"Invalid task identifier '{arg}'\n")
             return
+
+        while True:
+            date_input = input("Enter the date to reschedule the task (h for hints): ").strip()
+            if date_input.lower() == 'h':
+                self.print_date_format_hints()
+                continue
+            date_or_buffer = parse_date_or_buffer(date_input)
+            if date_or_buffer is not None:
+                break
+            else:
+                print('Invalid date format. Please try again or enter "h" for hints.')
 
         # Check original scheduled_date
         task = tm.get_task(task_id)
         original_date = datetime.date.fromisoformat(task['scheduled_date']) \
             if task['scheduled_date'] is not None else None
 
-        if date == original_date and task['status'] == 'scheduled':
-            print(f'Task {helpers.get_task_string(task_id)} already scheduled to '
-                  f'{helpers.get_day_string(today, date)}.\n')
-            return
+        if date_or_buffer == 'buffer':
+            print(f'Move task {helpers.get_task_string(task_id)} to buffer?')
+        else:
+            date = date_or_buffer
+            if date == original_date and task['status'] == 'scheduled':
+                print(f'Task {helpers.get_task_string(task_id)} is already scheduled to '
+                      f'{helpers.get_day_string(datetime.date.today(), date)}.\n')
+                return
+            print(f'Schedule task {helpers.get_task_string(task_id)} to '
+                  f'{helpers.get_day_string(datetime.date.today(), date)}?')
 
-        # Confirm the task scheduling
-        print(f'Schedule task {helpers.get_task_string(task_id)} to {helpers.get_day_string(today, date)}?')
-        input('Press <enter> to continue or Ctrl-C to abort.')
+        input('Press <enter> to confirm or Ctrl-C to abort.')
 
-        # Schedule the task
-        tm.schedule_task(task_id, date)
-        print(f'Task {helpers.get_task_string(task_id)} scheduled to '
-              f'{helpers.get_day_string(today, date)}.\n')
+        if date_or_buffer == 'buffer':
+            tm.buffer_task(task_id)
+            print(f'Task {helpers.get_task_string(task_id)} moved to buffer.\n')
+        else:
+            tm.schedule_task(task_id, date)
+            print(f'Task {helpers.get_task_string(task_id)} scheduled to '
+                  f'{helpers.get_day_string(datetime.date.today(), date)}.\n')
 
     def do_evaluate(self, arg):
         """Evaluate how well I did in the given interval: evaluate <offset_start> <offset_end>"""
@@ -441,7 +430,7 @@ Type 'help' for a list of commands.
                 task_schedule_events = tm.get_schedule_events(task_id)
                 task_schedule_events.sort(key=lambda x: x['scheduled_date'])
                 first_scheduled_date = datetime.date.fromisoformat(task_schedule_events[0]['scheduled_date'])
-                # check when the final scheduled date was
+                # Check when the final scheduled date was
                 scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
                 diff = scheduled_date - first_scheduled_date
                 if diff.days == 0:
@@ -454,18 +443,23 @@ Type 'help' for a list of commands.
         print(f'Evaluation for the interval {offset_start} to {offset_end} days from today:')
         print()
         print(f'Total number of tasks scheduled: {scheduled_count:>6}')
-        print(f'Completed on first day:          {completed_that_day_count:>6} '
-              f'({completed_that_day_count / scheduled_count:.0%})')
-        print(f'Completed on next day:           {completed_next_day_count:>6} '
-                f'({completed_next_day_count / scheduled_count:.0%})')
-        print(f'Completed on another day:        {completed_another_day_count:>6} '
-              f'({completed_another_day_count / scheduled_count:.0%})')
-        print(f'Made irrelevant:                 {made_irrelevant_count:>6} '
-              f'({made_irrelevant_count / scheduled_count:.0%})')
-        print(f'Buffered:                        {made_buffered_count:>6} '
-              f'({made_buffered_count / scheduled_count:.0%})')
-        print(f'Incomplete:                      {incomplete_count:>6} '
-              f'({incomplete_count / scheduled_count:.0%})')
+
+        if scheduled_count == 0:
+            print("No tasks scheduled in the interval.")
+        else:
+            print()
+            print(f'Completed on first day:          {completed_that_day_count:>6} '
+                  f'({(completed_that_day_count / scheduled_count * 100):.0f}%)')
+            print(f'Completed on next day:           {completed_next_day_count:>6} '
+                  f'({(completed_next_day_count / scheduled_count * 100):.0f}%)')
+            print(f'Completed on another day:        {completed_another_day_count:>6} '
+                  f'({(completed_another_day_count / scheduled_count * 100):.0f}%)')
+            print(f'Made irrelevant:                 {made_irrelevant_count:>6} '
+                  f'({(made_irrelevant_count / scheduled_count * 100):.0f}%)')
+            print(f'Buffered:                        {made_buffered_count:>6} '
+                  f'({(made_buffered_count / scheduled_count * 100):.0f}%)')
+            print(f'Incomplete:                      {incomplete_count:>6} '
+                  f'({(incomplete_count / scheduled_count * 100):.0f}%)')
 
     def do_task(self, arg):
         """Get information about a task: task <task_identifier>"""
@@ -499,7 +493,7 @@ Type 'help' for a list of commands.
         print()
 
     def do_modify_description(self, arg):
-        """Modify a task's description: modify <task_identifier> <new_description>"""
+        """Modify a task's description: modify <task_identifier>"""
         task_identifier = arg
 
         task_id = self.get_task_id(task_identifier)
@@ -536,15 +530,105 @@ Type 'help' for a list of commands.
         print('\nTill Tomorrow!')
         return True
 
+    def print_date_format_hints(self):
+        """Prints the supported date formats."""
+        print("Supported date formats:")
+        print(" - 'buffer' or 'b' to leave in buffer")
+        print(" - [T]oday or to[M]orrow")
+        print(" - Integer offset from today (e.g., '3' or '-1')")
+        print(" - Date in 'YYYY-MM-DD' format")
+        print(" - Date in 'MM-DD' format (next occurrence, including today)")
+        print(" - Day of the week (first three letters, e.g., 'mon', 'tue')")
+
+
+def parse_date_or_buffer(date_input):
+    """Parses a date input and returns a date object or 'buffer'.
+    Returns None if the input is invalid.
+
+    date_input can be:
+    - 'buffer' or 'b' (case-insensitive) to indicate buffering
+    - 't' or 'm' for today or tomorrow
+    - An integer offset from today (e.g., '3' or '-1')
+    - A date in 'YYYY-MM-DD' format
+    - A date in 'MM-DD' format (assumed to be the next occurrence, including today)
+    - A day of the week (first three letters, case-insensitive)
+    """
+    date_input = date_input.strip().lower()
+    if date_input in ['buffer', 'b']:
+        return 'buffer'
+    else:
+        return parse_date(date_input)
+
+
+def parse_date(date_input):
+    """Parses a date input and returns a date object.
+    Returns None if the input is invalid.
+
+    date_input can be:
+    - 't' or 'm' for today or tomorrow
+    - An integer offset from today (e.g., '3' or '-1')
+    - A date in 'YYYY-MM-DD' format
+    - A date in 'MM-DD' format (assumed to be the next occurrence, including today)
+    - A day of the week (first three letters, case-insensitive)
+    """
+    today = datetime.date.today()
+    date_input = date_input.strip().lower()
+
+    # Check for 'today' or 'tomorrow'
+    if date_input in ['t']:
+        return today
+    if date_input in ['m']:
+        return today + datetime.timedelta(days=1)
+
+    # Check if date_input is an integer offset
+    try:
+        days_offset = int(date_input)
+        return today + datetime.timedelta(days=days_offset)
+    except ValueError:
+        pass
+
+    # Check if date_input is a day of the week (first three letters)
+    weekdays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+    day_abbrev = date_input[:3].lower()
+    if day_abbrev in weekdays:
+        target_weekday = weekdays.index(day_abbrev)
+        current_weekday = today.weekday()  # 0 = Monday, 6 = Sunday
+        days_ahead = (target_weekday - current_weekday + 7) % 7
+        if days_ahead == 0:
+            days_ahead = 7  # Go to next week
+        return today + datetime.timedelta(days=days_ahead)
+
+    # Check if date_input is in MM-DD format
+    try:
+        parts = date_input.split('-')
+        if len(parts) != 2:
+            raise ValueError
+        month, day = map(int, parts)
+        year = today.year
+        date_candidate = datetime.date(year, month, day)
+        if date_candidate < today:
+            date_candidate = datetime.date(year + 1, month, day)
+        return date_candidate
+    except ValueError:
+        pass
+
+    # Check if date_input is in YYYY-MM-DD format
+    try:
+        date_candidate = datetime.datetime.strptime(date_input, '%Y-%m-%d').date()
+        return date_candidate
+    except ValueError:
+        pass
+
+    # If none of the formats match, return None to indicate invalid date
+    return None
+
 
 if __name__ == '__main__':
     app = ToYCLI()
 
-
     def sigint_handler(*_):  # Handle Ctrl+C
         app.terminate()
         sys.exit(0)
-
 
     signal.signal(signal.SIGINT, sigint_handler)
     sys.exit(app.cmdloop())
