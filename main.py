@@ -6,7 +6,6 @@ import datetime
 import json
 import helpers
 import termcolor
-import signal
 
 try:
     import readline
@@ -47,8 +46,10 @@ Type 'help' for a list of commands.
 
         self.do_list('')  # List tasks
 
-        ret_val = super().cmdloop(intro='')
-        return ret_val
+        try:
+            super().cmdloop(intro='')
+        except KeyboardInterrupt:
+            self.do_quit('')
 
     def generate_shortcuts(self):
         """Generate shortcuts for all commands."""
@@ -231,9 +232,12 @@ Type 'help' for a list of commands.
             return
 
         while True:
-            schedule_choice = input("Enter the date to schedule the task (h for hints): ").strip()
+            schedule_choice = safe_input("Enter the date to schedule the task (h for hints): ")
+            if schedule_choice is None:
+                return
+            schedule_choice = schedule_choice.strip()
             if schedule_choice.lower() == 'h':
-                self.print_date_format_hints()
+                print_date_format_hints()
                 continue
             date_or_buffer = parse_date_or_buffer(schedule_choice)
             if date_or_buffer is not None:
@@ -249,7 +253,9 @@ Type 'help' for a list of commands.
             print(f'Schedule task "{arg}" to '
                   f'{helpers.get_day_string(datetime.date.today(), date)}?')
 
-        input('Press <enter> to confirm or Ctrl-C to abort.')
+        confirmation = safe_input('Press <enter> to confirm or Ctrl-C to abort.')
+        if confirmation is None:
+            return
 
         # Only create the task after a valid date or buffer is confirmed
         task_id = tm.create_task(arg)
@@ -274,8 +280,11 @@ Type 'help' for a list of commands.
             print(f'Task {helpers.get_task_string(task_id)} needs to be scheduled to be marked as done.\n')
             return
 
-        input(f'Mark {helpers.get_task_string(task_id)} as done?'
-              '\nPress <enter> to continue or Ctrl-C to abort.')
+        confirmation = safe_input(f'Mark {helpers.get_task_string(task_id)} as done?'
+                                       '\nPress <enter> to continue or Ctrl-C to abort.')
+        if confirmation is None:
+            return
+
         tm.mark_task_completed(task_id)
         print(f'Task {helpers.get_task_string(task_id)} marked as done.\n')
 
@@ -292,8 +301,10 @@ Type 'help' for a list of commands.
             print(f'Task {helpers.get_task_string(task_id)} already marked as irrelevant.\n')
             return
 
-        input(f'Mark {helpers.get_task_string(task_id)} as irrelevant?'
-              '\nPress <enter> to continue or Ctrl-C to abort.')
+        confirmation = safe_input(f'Mark {helpers.get_task_string(task_id)} as irrelevant?'
+                                       '\nPress <enter> to continue or Ctrl-C to abort.')
+        if confirmation is None:
+            return
 
         tm.mark_task_irrelevant(task_id)
         print(f'Task {helpers.get_task_string(task_id)} marked as irrelevant.\n')
@@ -313,7 +324,9 @@ Type 'help' for a list of commands.
 
         # Confirm
         print(f'Move task {helpers.get_task_string(task_id)} to buffer?')
-        input('Press <enter> to continue or Ctrl-C to abort.')
+        confirmation = safe_input('Press <enter> to continue or Ctrl-C to abort.')
+        if confirmation is None:
+            return
 
         tm.buffer_task(task_id)
         print(f'Task {helpers.get_task_string(task_id)} moved to buffer.\n')
@@ -330,7 +343,9 @@ Type 'help' for a list of commands.
         print('Warning: This action cannot be undone! Only remove a task if it was added by mistake.')
         print('If you want to remove a task that is no longer relevant, mark it as irrelevant instead.')
         print(f'Remove task {task_string}?')
-        input('Press <enter> to continue or Ctrl-C to abort.')
+        confirmation = safe_input('Press <enter> to continue or Ctrl-C to abort.')
+        if confirmation is None:
+            return
 
         tm.remove_task(task_id)
         print(f'Task {task_string} removed.\n')
@@ -343,9 +358,12 @@ Type 'help' for a list of commands.
             return
 
         while True:
-            date_input = input("Enter the date to reschedule the task (h for hints): ").strip()
+            date_input = safe_input("Enter the date to reschedule the task (h for hints): ")
+            if date_input is None:
+                return
+            date_input = date_input.strip()
             if date_input.lower() == 'h':
-                self.print_date_format_hints()
+                print_date_format_hints()
                 continue
             date_or_buffer = parse_date_or_buffer(date_input)
             if date_or_buffer is not None:
@@ -369,7 +387,9 @@ Type 'help' for a list of commands.
             print(f'Schedule task {helpers.get_task_string(task_id)} to '
                   f'{helpers.get_day_string(datetime.date.today(), date)}?')
 
-        input('Press <enter> to confirm or Ctrl-C to abort.')
+        confirmation = safe_input('Press <enter> to confirm or Ctrl-C to abort.')
+        if confirmation is None:
+            return
 
         if date_or_buffer == 'buffer':
             tm.buffer_task(task_id)
@@ -502,7 +522,9 @@ Type 'help' for a list of commands.
             return
 
         print(f'Modifying task {helpers.get_task_string(task_id)}...')
-        new_description = input('Enter the new description: ')
+        new_description = safe_input('Enter the new description: ')
+        if new_description is None:
+            return
 
         tm.modify_description(task_id, new_description)
         print(f'Task modified to {helpers.get_task_string(task_id)}.\n')
@@ -530,15 +552,25 @@ Type 'help' for a list of commands.
         print('\nTill Tomorrow!')
         return True
 
-    def print_date_format_hints(self):
-        """Prints the supported date formats."""
-        print("Supported date formats:")
-        print(" - 'buffer' or 'b' to leave in buffer")
-        print(" - [T]oday or to[M]orrow")
-        print(" - Integer offset from today (e.g., '3' or '-1')")
-        print(" - Date in 'YYYY-MM-DD' format")
-        print(" - Date in 'MM-DD' format (next occurrence, including today)")
-        print(" - Day of the week (first three letters, e.g., 'mon', 'tue')")
+
+def print_date_format_hints(self):
+    """Prints the supported date formats."""
+    print("Supported date formats:")
+    print(" - 'buffer' or 'b' to leave in buffer")
+    print(" - [T]oday or to[M]orrow")
+    print(" - Integer offset from today (e.g., '3' or '-1')")
+    print(" - Date in 'YYYY-MM-DD' format")
+    print(" - Date in 'MM-DD' format (next occurrence, including today)")
+    print(" - Day of the week (first three letters, e.g., 'mon', 'tue')")
+
+
+def safe_input(prompt):
+    """Input method that handles KeyboardInterrupt exceptions."""
+    try:
+        return input(prompt)
+    except KeyboardInterrupt:
+        print('\nOperation cancelled.\n')
+        return None
 
 
 def parse_date_or_buffer(date_input):
@@ -625,10 +657,4 @@ def parse_date(date_input):
 
 if __name__ == '__main__':
     app = ToYCLI()
-
-    def sigint_handler(*_):  # Handle Ctrl+C
-        app.terminate()
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, sigint_handler)
     sys.exit(app.cmdloop())

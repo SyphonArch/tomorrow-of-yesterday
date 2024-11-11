@@ -173,6 +173,7 @@ def get_unfinished_tasks():
     SELECT *
     FROM tasks
     WHERE status = 'scheduled'
+    ORDER BY id
     ''')
     tasks = c.fetchall()
 
@@ -193,6 +194,7 @@ def get_tasks_for_date(date):
     SELECT *
     FROM tasks
     WHERE scheduled_date = ?
+    ORDER BY id
     ''', (date,))
     tasks = c.fetchall()
 
@@ -210,6 +212,7 @@ def get_buffered_tasks():
     SELECT *
     FROM tasks
     WHERE status = 'buffered'
+    ORDER BY id
     ''')
     tasks = c.fetchall()
 
@@ -230,6 +233,7 @@ def get_all_tasks_ever_scheduled_to_date(date):
     SELECT task_id
     FROM task_events
     WHERE scheduled_date = ?
+    ORDER BY task_id
     ''', (date,))
     task_ids = c.fetchall()
 
@@ -254,6 +258,7 @@ def get_schedule_events(task_id, after_date=None):
     FROM task_events
     WHERE task_id = ?
     AND scheduled_date > ?
+    ORDER BY scheduled_date
     ''', (task_id, after_date))
     task_events = c.fetchall()
 
@@ -271,6 +276,7 @@ def modify_description(task_id, description):
     UPDATE tasks
     SET description = ?
     WHERE id = ?
+    ORDER BY id
     ''', (description, task_id))
 
     conn.commit()
