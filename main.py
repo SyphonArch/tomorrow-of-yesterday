@@ -553,7 +553,7 @@ Type 'help' for a list of commands.
         return True
 
 
-def print_date_format_hints(self):
+def print_date_format_hints():
     """Prints the supported date formats."""
     print("Supported date formats:")
     print(" - 'buffer' or 'b' to leave in buffer")
