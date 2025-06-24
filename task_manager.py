@@ -276,8 +276,8 @@ def modify_description(task_id, description):
     UPDATE tasks
     SET description = ?
     WHERE id = ?
-    ORDER BY id
     ''', (description, task_id))
 
     conn.commit()
     conn.close()
+
