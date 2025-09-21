@@ -110,6 +110,28 @@ Type 'help' for a list of commands.
 
         bindings = {}
 
+        # --- tiny, non-memoized helpers ---
+        def scheduled_dates(task_id: int):
+            """All scheduled dates for this task, as date objects (may be empty)."""
+            evts = tm.get_schedule_events(task_id)
+            return [datetime.date.fromisoformat(e['scheduled_date']) for e in evts]
+
+        def latest_scheduled_date(task_id: int):
+            ds = scheduled_dates(task_id)
+            return max(ds) if ds else None
+
+        def resched_marker(task_id: int) -> str:
+            """Dark-grey '(resched N, age Xd)' only if rescheduled >= 1, age from earliest scheduled date."""
+            ds = scheduled_dates(task_id)
+            resched = max(0, len(ds) - 1)
+            if resched == 0:
+                return ""
+            earliest = min(ds)
+            age_days = (datetime.date.today() - earliest).days
+            txt = f" (resched {resched}" + (f", age {age_days}d)" if age_days > 0 else ")")
+            return termcolor.colored(txt, 'dark_grey')
+        # -----------------------------------
+
         today = datetime.date.today()
 
         # Check for overdue tasks and tasks that are too far in the future
@@ -134,12 +156,12 @@ Type 'help' for a list of commands.
             print(termcolor.colored('>> Unfinished tasks from previous days <<', 'light_red'))
             for i, task in enumerate(overdue_tasks):
                 task_id = task['id']
-                task_string = helpers.get_task_string(task_id)
+                base = helpers.get_task_string(task_id)
                 task_identifier = f'!{i}'
                 bindings[task_identifier] = task_id
                 scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
-                task_string = termcolor.colored(task_string, 'light_red')
-                print(f'{task_identifier}. {task_string} | {helpers.get_day_string(today, scheduled_date)}')
+                task_string_colored = termcolor.colored(base, 'light_red') + resched_marker(task_id)
+                print(f'{task_identifier}. {task_string_colored} | {helpers.get_day_string(today, scheduled_date)}')
             print()
 
         # Print tasks for each day in the list
@@ -152,49 +174,55 @@ Type 'help' for a list of commands.
             tasks = tm.get_tasks_for_date(date)
             if not tasks:
                 print('Nothing to do!\n')
-                continue
+            else:
+                # Sort: scheduled → irrelevant → completed (your original order)
+                tasks = sorted(
+                    tasks,
+                    key=lambda x: 0 if x['status'] == 'scheduled' else 1 if x['status'] == 'irrelevant' else 2
+                )
 
-            # Sort the tasks so that 'scheduled' tasks are before 'irrelevant' tasks, and 'completed' tasks are last
-            tasks = sorted(tasks,
-                           key=lambda x: 0 if x['status'] == 'scheduled' else 1 if x['status'] == 'irrelevant' else 2)
+                remaining_scheduled_task_count = 0
 
-            remaining_scheduled_task_count = 0
+                for i, task in enumerate(tasks):
+                    task_id = task['id']
+                    base = helpers.get_task_string(task_id)
+                    task_identifier = helpers.get_task_identifier_prefix(day_offset) + str(i)
+                    bindings[task_identifier] = task_id
+                    status = f'[{task["status"]}]' if task['status'] != 'scheduled' else ''
+                    if task['status'] == 'scheduled':
+                        remaining_scheduled_task_count += 1
+                        colored = termcolor.colored(base, 'magenta') + resched_marker(task_id)
+                    elif task['status'] == 'completed':
+                        colored = termcolor.colored(base, 'green') + resched_marker(task_id)
+                    else:
+                        assert task['status'] == 'irrelevant'
+                        colored = termcolor.colored(base, 'cyan') + resched_marker(task_id)
+                    print(f'{task_identifier}. {colored} {status}')
+                if remaining_scheduled_task_count == 0:
+                    print(termcolor.colored('~ You have completed the day! Yay! >.< ~', 'green', 'on_black'))
 
-            for i, task in enumerate(tasks):
-                task_id = task['id']
-                task_string = helpers.get_task_string(task_id)
-                task_identifier = helpers.get_task_identifier_prefix(day_offset) + str(i)
-                bindings[task_identifier] = task_id
-                status = f'[{task["status"]}]' if task['status'] != 'scheduled' else ''
-                # Color the task string based on the status
-                if task['status'] == 'scheduled':
-                    remaining_scheduled_task_count += 1
-                    task_string = termcolor.colored(task_string, 'magenta')
-                elif task['status'] == 'completed':
-                    task_string = termcolor.colored(task_string, 'green')
-                else:
-                    assert task['status'] == 'irrelevant'
-                    task_string = termcolor.colored(task_string, 'cyan')
-                print(f'{task_identifier}. {task_string} {status}')
-            if remaining_scheduled_task_count == 0:
-                print(termcolor.colored('~ You have completed the day! Yay! >.< ~', 'green', 'on_black'))
+            # --- Rescheduled tasks footer for this day ---
+            # Tasks that ever had a scheduled event on this date (dedup by id)
+            ever_on_date_ids = {t['id'] for t in tm.get_all_tasks_ever_scheduled_to_date(date)}
 
-            potentially_rescheduled_tasks = tm.get_all_tasks_ever_scheduled_to_date(date)
-            rescheduled_tasks = [task for task in potentially_rescheduled_tasks if
-                                 task['scheduled_date'] != date.isoformat()]
+            # Show under every prior day they were scheduled for, but not under their final day.
+            rescheduled_tasks = []
+            for tid in ever_on_date_ids:
+                if latest_scheduled_date(tid) != date:
+                    rescheduled_tasks.append(tm.get_task(tid))
 
-            # Print rescheduled tasks
             if rescheduled_tasks:
                 print(termcolor.colored('-- Rescheduled tasks --', 'dark_grey'))
-                for i, task in enumerate(rescheduled_tasks):
+                for i, task in enumerate(sorted(rescheduled_tasks, key=lambda x: x['id'])):
                     task_id = task['id']
-                    task_string = helpers.get_task_string(task_id)
+                    base = helpers.get_task_string(task_id)
                     if task['status'] in ('scheduled', 'completed'):
                         date_string_or_buffered = f"{task['status']} {task['scheduled_date']}"
                     else:
                         date_string_or_buffered = task['status']
-                    print(termcolor.colored(f'{task_string} | {date_string_or_buffered}',
-                                            'dark_grey'))
+                    line_left = termcolor.colored(base, 'dark_grey')
+                    line_right = termcolor.colored(f' | {date_string_or_buffered}', 'dark_grey')
+                    print(line_left + line_right)
             print()
 
         # Print unlisted tasks
@@ -202,12 +230,12 @@ Type 'help' for a list of commands.
             print(termcolor.colored('>> Tasks further in the future <<', 'blue'))
             for i, task in enumerate(unlisted_tasks):
                 task_id = task['id']
-                task_string = helpers.get_task_string(task_id)
+                base = helpers.get_task_string(task_id)
                 task_identifier = f'+{i}'
                 bindings[task_identifier] = task_id
                 scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
-                task_string = termcolor.colored(task_string, 'blue')
-                print(f'{task_identifier}. {task_string} | {helpers.get_day_string(today, scheduled_date)}')
+                task_string_colored = termcolor.colored(base, 'blue') + resched_marker(task_id)
+                print(f'{task_identifier}. {task_string_colored} | {helpers.get_day_string(today, scheduled_date)}')
             print()
 
         # Print buffered tasks
@@ -216,11 +244,11 @@ Type 'help' for a list of commands.
             print(termcolor.colored('))) Buffered tasks (((', 'yellow'))
             for i, task in enumerate(buffered_tasks):
                 task_id = task['id']
-                task_string = helpers.get_task_string(task_id)
+                base = helpers.get_task_string(task_id)
                 task_identifier = f'*{i}'
                 bindings[task_identifier] = task_id
-                task_string = termcolor.colored(task_string, 'yellow')
-                print(f'{task_identifier}. {task_string}')
+                task_string_colored = termcolor.colored(base, 'yellow') + resched_marker(task_id)
+                print(f'{task_identifier}. {task_string_colored}')
             print()
 
         self.bindings = bindings
