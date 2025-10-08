@@ -258,7 +258,7 @@ def get_schedule_events(task_id, after_date=None):
     FROM task_events
     WHERE task_id = ?
     AND scheduled_date > ?
-    ORDER BY scheduled_date
+    ORDER BY event_date
     ''', (task_id, after_date))
     task_events = c.fetchall()
 
