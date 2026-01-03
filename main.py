@@ -116,9 +116,11 @@ Type 'help' for a list of commands.
             evts = tm.get_schedule_events(task_id)
             return [datetime.date.fromisoformat(e['scheduled_date']) for e in evts]
 
-        def latest_scheduled_date(task_id: int):
-            ds = scheduled_dates(task_id)
-            return max(ds) if ds else None
+        def current_scheduled_date(task_id: int):
+            task = tm.get_task(task_id)
+            if task['status'] != 'scheduled':
+                return None
+            return datetime.date.fromisoformat(task['scheduled_date'])
 
         def resched_marker(task_id: int) -> str:
             """Dark-grey '(resched N, age Xd)' only if rescheduled >= 1, age from earliest scheduled date."""
@@ -208,7 +210,7 @@ Type 'help' for a list of commands.
             # Show under every prior day they were scheduled for, but not under their final day.
             rescheduled_tasks = []
             for tid in ever_on_date_ids:
-                if latest_scheduled_date(tid) != date:
+                if current_scheduled_date(tid) > date:
                     rescheduled_tasks.append(tm.get_task(tid))
 
             if rescheduled_tasks:
