@@ -210,7 +210,8 @@ Type 'help' for a list of commands.
             # Show under every prior day they were scheduled for, but not under their final day.
             rescheduled_tasks = []
             for tid in ever_on_date_ids:
-                if current_scheduled_date(tid) > date:
+                csd = current_scheduled_date(tid)
+                if csd is not None and csd > date:
                     rescheduled_tasks.append(tm.get_task(tid))
 
             if rescheduled_tasks:
