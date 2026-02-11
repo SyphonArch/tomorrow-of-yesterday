@@ -19,6 +19,7 @@ def setup_database():
         description TEXT,
         created_date TEXT,
         status TEXT, -- 'scheduled', 'completed', 'irrelevant', 'buffered'
+        priority INTEGER NOT NULL DEFAULT 0,
         scheduled_date TEXT,
         latest_event_id INTEGER,
         FOREIGN KEY (latest_event_id) REFERENCES task_events (event_id)

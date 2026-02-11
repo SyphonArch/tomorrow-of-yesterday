@@ -9,6 +9,7 @@ Built for personal use, to augment due date-based task management with a more ta
 - Mark tasks as done
 - Mark tasks as irrelevant
 - Move tasks into a buffer for unscheduled tasks
+- Assign priority to tasks
 - Delete tasks
 - Reschedule tasks
 - Retain task history
@@ -24,3 +25,9 @@ Built for personal use, to augment due date-based task management with a more ta
    ```sh
    python main.py
    ```
+
+## One-time migration (existing databases)
+If you already have a `task_db.db` created before priorities were added, run:
+```sh
+python migrate_add_priority.py
+```

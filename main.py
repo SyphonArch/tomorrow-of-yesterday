@@ -110,6 +110,12 @@ Type 'help' for a list of commands.
 
         bindings = {}
 
+        def priority_stars(task) -> str:
+            priority = task['priority'] if 'priority' in task.keys() else 0
+            if priority <= 0:
+                return ''
+            return "⭐" * int(priority)
+
         # --- tiny, non-memoized helpers ---
         def scheduled_dates(task_id: int):
             """All scheduled dates for this task, as date objects (may be empty)."""
@@ -130,8 +136,19 @@ Type 'help' for a list of commands.
                 return ""
             earliest = min(ds)
             age_days = (datetime.date.today() - earliest).days
-            txt = f" (resched {resched}" + (f", age {age_days}d)" if age_days > 0 else ")")
+            txt = f"(resched {resched}" + (f", age {age_days}d)" if age_days > 0 else ")")
             return termcolor.colored(txt, 'dark_grey')
+
+        def priority_and_resched(task, task_id: int) -> str:
+            stars = priority_stars(task)
+            marker = resched_marker(task_id)
+            if stars and marker:
+                return f' {stars} {marker}'
+            if stars:
+                return f' {stars}'
+            if marker:
+                return f' {marker}'
+            return ''
         # -----------------------------------
 
         today = datetime.date.today()
@@ -162,8 +179,9 @@ Type 'help' for a list of commands.
                 task_identifier = f'!{i}'
                 bindings[task_identifier] = task_id
                 scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
-                task_string_colored = termcolor.colored(base, 'light_red') + resched_marker(task_id)
-                print(f'{task_identifier}. {task_string_colored} | {helpers.get_day_string(today, scheduled_date)}')
+                task_string_colored = termcolor.colored(base, 'light_red') + priority_and_resched(task, task_id)
+                print(f'{task_identifier}. {task_string_colored} | '
+                      f'{helpers.get_day_string(today, scheduled_date)}')
             print()
 
         # Print tasks for each day in the list
@@ -180,7 +198,11 @@ Type 'help' for a list of commands.
                 # Sort: scheduled → irrelevant → completed (your original order)
                 tasks = sorted(
                     tasks,
-                    key=lambda x: 0 if x['status'] == 'scheduled' else 1 if x['status'] == 'irrelevant' else 2
+                    key=lambda x: (
+                        0 if x['status'] == 'scheduled' else 1 if x['status'] == 'irrelevant' else 2,
+                        -x['priority'],
+                        x['id']
+                    )
                 )
 
                 remaining_scheduled_task_count = 0
@@ -193,13 +215,14 @@ Type 'help' for a list of commands.
                     status = f'[{task["status"]}]' if task['status'] != 'scheduled' else ''
                     if task['status'] == 'scheduled':
                         remaining_scheduled_task_count += 1
-                        colored = termcolor.colored(base, 'magenta') + resched_marker(task_id)
+                        colored = termcolor.colored(base, 'magenta') + priority_and_resched(task, task_id)
                     elif task['status'] == 'completed':
-                        colored = termcolor.colored(base, 'green') + resched_marker(task_id)
+                        colored = termcolor.colored(base, 'green') + priority_and_resched(task, task_id)
                     else:
                         assert task['status'] == 'irrelevant'
-                        colored = termcolor.colored(base, 'cyan') + resched_marker(task_id)
-                    print(f'{task_identifier}. {colored} {status}')
+                        colored = termcolor.colored(base, 'cyan') + priority_and_resched(task, task_id)
+                    status_suffix = f' {status}' if status else ''
+                    print(f'{task_identifier}. {colored}{status_suffix}')
                 if remaining_scheduled_task_count == 0:
                     print(termcolor.colored('~ You have completed the day! Yay! >.< ~', 'green', 'on_black'))
 
@@ -223,7 +246,8 @@ Type 'help' for a list of commands.
                         date_string_or_buffered = f"{task['status']} {task['scheduled_date']}"
                     else:
                         date_string_or_buffered = task['status']
-                    line_left = termcolor.colored(base, 'dark_grey')
+                    stars = priority_stars(task)
+                    line_left = termcolor.colored(base + (f' {stars}' if stars else ''), 'dark_grey')
                     line_right = termcolor.colored(f' | {date_string_or_buffered}', 'dark_grey')
                     print(line_left + line_right)
             print()
@@ -237,8 +261,9 @@ Type 'help' for a list of commands.
                 task_identifier = f'+{i}'
                 bindings[task_identifier] = task_id
                 scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
-                task_string_colored = termcolor.colored(base, 'blue') + resched_marker(task_id)
-                print(f'{task_identifier}. {task_string_colored} | {helpers.get_day_string(today, scheduled_date)}')
+                task_string_colored = termcolor.colored(base, 'blue') + priority_and_resched(task, task_id)
+                print(f'{task_identifier}. {task_string_colored} | '
+                      f'{helpers.get_day_string(today, scheduled_date)}')
             print()
 
         # Print buffered tasks
@@ -250,7 +275,7 @@ Type 'help' for a list of commands.
                 base = helpers.get_task_string(task_id)
                 task_identifier = f'*{i}'
                 bindings[task_identifier] = task_id
-                task_string_colored = termcolor.colored(base, 'yellow') + resched_marker(task_id)
+                task_string_colored = termcolor.colored(base, 'yellow') + priority_and_resched(task, task_id)
                 print(f'{task_identifier}. {task_string_colored}')
             print()
 
@@ -261,6 +286,23 @@ Type 'help' for a list of commands.
         if arg == '':
             print('Usage: add <task_description>\n')
             return
+
+        while True:
+            priority_input = safe_input("Enter priority (0 for none): ")
+            if priority_input is None:
+                return
+            priority_input = priority_input.strip()
+            if priority_input == '':
+                priority = 0
+                break
+            try:
+                priority = int(priority_input)
+                if priority < 0:
+                    raise ValueError
+                break
+            except ValueError:
+                print('Priority must be a non-negative integer.')
+        priority_stars_text = '⭐' * priority
 
         while True:
             schedule_choice = safe_input("Enter the date to schedule the task (h for hints): ")
@@ -278,10 +320,10 @@ Type 'help' for a list of commands.
 
         # Confirm the date or buffer before creating the task
         if date_or_buffer == 'buffer':
-            print(f'Add task "{arg}" to buffer?')
+            print(f'Add task "{arg}"{priority_stars_text} to buffer?')
         else:
             date = date_or_buffer
-            print(f'Schedule task "{arg}" to '
+            print(f'Schedule task "{arg}"{priority_stars_text} to '
                   f'{helpers.get_day_string(datetime.date.today(), date)}?')
 
         confirmation = safe_input('Press <enter> to confirm or Ctrl-C to abort.')
@@ -289,7 +331,7 @@ Type 'help' for a list of commands.
             return
 
         # Only create the task after a valid date or buffer is confirmed
-        task_id = tm.create_task(arg)
+        task_id = tm.create_task(arg, priority)
 
         if date_or_buffer == 'buffer':
             print(f'Task {helpers.get_task_string(task_id)} left in buffer.')
@@ -297,6 +339,30 @@ Type 'help' for a list of commands.
             tm.schedule_task(task_id, date)
             print(f'Task {helpers.get_task_string(task_id)} scheduled to '
                   f'{helpers.get_day_string(datetime.date.today(), date)}.')
+
+    def do_priority(self, arg):
+        """Set priority for a task: priority <task_identifier> <priority>"""
+        args = arg.split()
+        if len(args) != 2:
+            print('Usage: priority <task_identifier> <priority>\n')
+            return
+
+        task_id = self.get_task_id(args[0])
+        if task_id is None:
+            print(f"Invalid task identifier '{args[0]}'\n")
+            return
+
+        try:
+            priority = int(args[1])
+            if priority < 0:
+                raise ValueError
+        except ValueError:
+            print('Priority must be a non-negative integer.\n')
+            return
+
+        tm.set_priority(task_id, priority)
+        stars = '⭐' * priority
+        print(f'Priority for {helpers.get_task_string(task_id)} set to {stars if stars else "no stars"}.\n')
 
     def do_completed(self, arg):
         """Mark task as completed: completed <task_identifier>"""
@@ -531,6 +597,7 @@ Type 'help' for a list of commands.
         print(f'Evaluating task {task_string}')
         print(f'    Created on: {task["created_date"]:>20}')
         print(f'    Status: {task["status"]:>24}')
+        print(f'    Priority: {task["priority"]:>22}')
         if task['status'] != 'buffered':
             print(f'    Scheduled for: {task["scheduled_date"]:>17}')
 

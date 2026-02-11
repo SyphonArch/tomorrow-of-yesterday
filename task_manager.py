@@ -2,16 +2,19 @@ from database import get_connection
 import datetime
 
 
-def create_task(description):
+def create_task(description, priority=0):
     """Create a new task with the given description.
     Task is added to the buffer by default."""
+    assert isinstance(priority, int), 'priority must be an integer'
+    assert priority >= 0, 'priority must be non-negative'
+
     conn = get_connection()
     c = conn.cursor()
 
     c.execute('''
-    INSERT INTO tasks (description, created_date, status)
-    VALUES (?, DATE('now'), 'created')
-    ''', (description,))
+    INSERT INTO tasks (description, created_date, status, priority)
+    VALUES (?, DATE('now'), 'created', ?)
+    ''', (description, priority))
     task_id = c.lastrowid
 
     conn.commit()
@@ -194,7 +197,7 @@ def get_tasks_for_date(date):
     SELECT *
     FROM tasks
     WHERE scheduled_date = ?
-    ORDER BY id
+    ORDER BY priority DESC, id
     ''', (date,))
     tasks = c.fetchall()
 
@@ -212,7 +215,7 @@ def get_buffered_tasks():
     SELECT *
     FROM tasks
     WHERE status = 'buffered'
-    ORDER BY id
+    ORDER BY priority DESC, id
     ''')
     tasks = c.fetchall()
 
@@ -281,3 +284,20 @@ def modify_description(task_id, description):
     conn.commit()
     conn.close()
 
+
+def set_priority(task_id, priority):
+    """Set the priority of the task with the given ID."""
+    assert isinstance(priority, int), 'priority must be an integer'
+    assert priority >= 0, 'priority must be non-negative'
+
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute('''
+    UPDATE tasks
+    SET priority = ?
+    WHERE id = ?
+    ''', (priority, task_id))
+
+    conn.commit()
+    conn.close()
