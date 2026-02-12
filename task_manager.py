@@ -176,7 +176,7 @@ def get_unfinished_tasks():
     SELECT *
     FROM tasks
     WHERE status = 'scheduled'
-    ORDER BY id
+    ORDER BY scheduled_date, priority DESC, id
     ''')
     tasks = c.fetchall()
 

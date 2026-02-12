@@ -166,9 +166,15 @@ Type 'help' for a list of commands.
             elif scheduled_date > cutoff_date_end:
                 unlisted_tasks.append(task)
 
-        # Sort the tasks by scheduled date
-        overdue_tasks = sorted(overdue_tasks, key=lambda x: x['scheduled_date'])
-        unlisted_tasks = sorted(unlisted_tasks, key=lambda x: x['scheduled_date'])
+        # Sort by scheduled date, then priority (desc), then id for stability
+        overdue_tasks = sorted(
+            overdue_tasks,
+            key=lambda x: (x['scheduled_date'], -x['priority'], x['id'])
+        )
+        unlisted_tasks = sorted(
+            unlisted_tasks,
+            key=lambda x: (x['scheduled_date'], -x['priority'], x['id'])
+        )
 
         # Print overdue tasks
         if overdue_tasks:
@@ -239,7 +245,9 @@ Type 'help' for a list of commands.
 
             if rescheduled_tasks:
                 print(termcolor.colored('-- Rescheduled tasks --', 'dark_grey'))
-                for i, task in enumerate(sorted(rescheduled_tasks, key=lambda x: x['id'])):
+                for i, task in enumerate(
+                    sorted(rescheduled_tasks, key=lambda x: (x['scheduled_date'], -x['priority'], x['id']))
+                ):
                     task_id = task['id']
                     base = helpers.get_task_string(task_id)
                     if task['status'] in ('scheduled', 'completed'):
