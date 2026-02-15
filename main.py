@@ -296,23 +296,6 @@ Type 'help' for a list of commands.
             return
 
         while True:
-            priority_input = safe_input("Enter priority (0 for none): ")
-            if priority_input is None:
-                return
-            priority_input = priority_input.strip()
-            if priority_input == '':
-                priority = 0
-                break
-            try:
-                priority = int(priority_input)
-                if priority < 0:
-                    raise ValueError
-                break
-            except ValueError:
-                print('Priority must be a non-negative integer.')
-        priority_stars_text = '⭐' * priority
-
-        while True:
             schedule_choice = safe_input("Enter the date to schedule the task (h for hints): ")
             if schedule_choice is None:
                 return
@@ -328,10 +311,10 @@ Type 'help' for a list of commands.
 
         # Confirm the date or buffer before creating the task
         if date_or_buffer == 'buffer':
-            print(f'Add task "{arg}"{priority_stars_text} to buffer?')
+            print(f'Add task "{arg}" to buffer?')
         else:
             date = date_or_buffer
-            print(f'Schedule task "{arg}"{priority_stars_text} to '
+            print(f'Schedule task "{arg}" to '
                   f'{helpers.get_day_string(datetime.date.today(), date)}?')
 
         confirmation = safe_input('Press <enter> to confirm or Ctrl-C to abort.')
@@ -339,7 +322,7 @@ Type 'help' for a list of commands.
             return
 
         # Only create the task after a valid date or buffer is confirmed
-        task_id = tm.create_task(arg, priority)
+        task_id = tm.create_task(arg)
 
         if date_or_buffer == 'buffer':
             print(f'Task {helpers.get_task_string(task_id)} left in buffer.')
