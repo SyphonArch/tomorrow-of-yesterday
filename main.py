@@ -230,11 +230,15 @@ Type 'help' for a list of commands.
             # Tasks that ever had a scheduled event on this date (dedup by id)
             ever_on_date_ids = {t['id'] for t in tm.get_all_tasks_ever_scheduled_to_date(date)}
 
-            # Show under every prior day they were scheduled for, but not under their final scheduled day.
+            # Show only when the task currently sits after a day it was previously scheduled for.
             rescheduled_tasks = []
             for tid in ever_on_date_ids:
-                if any(scheduled_date > date for scheduled_date in scheduled_dates(tid)):
-                    rescheduled_tasks.append(tm.get_task(tid))
+                task = tm.get_task(tid)
+                if task['scheduled_date'] is None:
+                    continue
+                current_scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
+                if current_scheduled_date > date:
+                    rescheduled_tasks.append(task)
 
             if rescheduled_tasks:
                 print(termcolor.colored('-- Rescheduled tasks --', 'dark_grey'))
