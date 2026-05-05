@@ -25,7 +25,7 @@ Welcome to ToY, your personal task scheduler!
 Type 'help' for a list of commands.
 ##############################################
 """
-    prompt = '==============================================\nToY> '
+    prompt = '##############################################\nToY> '
 
     no_shortcuts = ['setup', 'EOF', 'remove']  # Commands that should not have shortcuts
 
