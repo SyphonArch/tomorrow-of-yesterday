@@ -220,7 +220,7 @@ Type 'help' for a list of commands.
                         colored = termcolor.colored(base, 'green') + priority_and_resched(task, task_id)
                     else:
                         assert task['status'] == 'irrelevant'
-                        colored = termcolor.colored(base, 'cyan') + priority_and_resched(task, task_id)
+                        colored = termcolor.colored(base, 'blue') + priority_and_resched(task, task_id)
                     status_suffix = f' {status}' if status else ''
                     print(f'{task_identifier}. {colored}{status_suffix}')
                 if remaining_scheduled_task_count == 0:
@@ -259,14 +259,14 @@ Type 'help' for a list of commands.
 
         # Print unlisted tasks
         if unlisted_tasks:
-            print(termcolor.colored('>> Tasks further in the future <<', 'blue'))
+            print(termcolor.colored('>> Tasks further in the future <<', 'cyan'))
             for i, task in enumerate(unlisted_tasks):
                 task_id = task['id']
                 base = helpers.get_task_string(task_id)
                 task_identifier = f'+{i}'
                 bindings[task_identifier] = task_id
                 scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
-                task_string_colored = termcolor.colored(base, 'blue') + priority_and_resched(task, task_id)
+                task_string_colored = termcolor.colored(base, 'cyan') + priority_and_resched(task, task_id)
                 print(f'{task_identifier}. {task_string_colored} | '
                       f'{helpers.get_day_string(today, scheduled_date)}')
             print()
