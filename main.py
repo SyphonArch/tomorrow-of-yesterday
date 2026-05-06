@@ -251,8 +251,7 @@ Type 'help' for a list of commands.
                         date_string_or_buffered = f"{task['status']} {task['scheduled_date']}"
                     else:
                         date_string_or_buffered = task['status']
-                    stars = priority_stars(task)
-                    line_left = termcolor.colored(base + (f' {stars}' if stars else ''), 'dark_grey')
+                    line_left = termcolor.colored(base, 'dark_grey')
                     line_right = termcolor.colored(f' | {date_string_or_buffered}', 'dark_grey')
                     print(line_left + line_right)
             print()
