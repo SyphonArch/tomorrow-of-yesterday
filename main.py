@@ -244,9 +244,11 @@ Type 'help' for a list of commands.
                 task = tm.get_task(tid)
                 if task['scheduled_date'] is None:
                     effective_scheduled_date = latest_scheduled_date(tid)
+                    should_show = effective_scheduled_date is not None and effective_scheduled_date >= date
                 else:
                     effective_scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
-                if effective_scheduled_date is not None and effective_scheduled_date > date:
+                    should_show = effective_scheduled_date > date
+                if should_show:
                     rescheduled_tasks.append(task)
 
             if rescheduled_tasks:
