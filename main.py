@@ -122,6 +122,14 @@ Type 'help' for a list of commands.
             evts = tm.get_schedule_events(task_id)
             return [datetime.date.fromisoformat(e['scheduled_date']) for e in evts]
 
+        def latest_scheduled_date(task_id: int):
+            """Most recent scheduled date by event id, or None if the task was never scheduled."""
+            evts = tm.get_schedule_events(task_id)
+            if not evts:
+                return None
+            latest = max(evts, key=lambda e: e['event_id'])
+            return datetime.date.fromisoformat(latest['scheduled_date'])
+
         def resched_marker(task_id: int) -> str:
             """Dark-grey '(resched N, age Xd)' only if rescheduled >= 1, age from earliest scheduled date."""
             ds = scheduled_dates(task_id)
@@ -235,15 +243,23 @@ Type 'help' for a list of commands.
             for tid in ever_on_date_ids:
                 task = tm.get_task(tid)
                 if task['scheduled_date'] is None:
-                    continue
-                current_scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
-                if current_scheduled_date > date:
+                    effective_scheduled_date = latest_scheduled_date(tid)
+                else:
+                    effective_scheduled_date = datetime.date.fromisoformat(task['scheduled_date'])
+                if effective_scheduled_date is not None and effective_scheduled_date > date:
                     rescheduled_tasks.append(task)
 
             if rescheduled_tasks:
                 print(termcolor.colored('-- Rescheduled tasks --', 'dark_grey'))
                 for i, task in enumerate(
-                    sorted(rescheduled_tasks, key=lambda x: (x['scheduled_date'], -x['priority'], x['id']))
+                    sorted(
+                        rescheduled_tasks,
+                        key=lambda x: (
+                            latest_scheduled_date(x['id']).isoformat(),
+                            -x['priority'],
+                            x['id'],
+                        )
+                    )
                 ):
                     task_id = task['id']
                     base = helpers.get_task_string(task_id)
