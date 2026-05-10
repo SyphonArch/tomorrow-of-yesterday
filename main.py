@@ -452,8 +452,7 @@ Type 'help' for a list of commands.
             print(f'Task {helpers.get_task_string(task_id)} needs to be scheduled to be marked as done.\n')
             return
 
-        confirmation = safe_input(f'Mark {helpers.get_task_string(task_id)} as done?'
-                                       '\nPress <enter> to continue or Ctrl-C to abort.')
+        confirmation = safe_input(f'Mark {helpers.get_task_string(task_id)} done? [enter/Ctrl-C] ')
         if confirmation is None:
             return
 
