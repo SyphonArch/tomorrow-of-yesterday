@@ -8,6 +8,8 @@ def format_duration(duration_minutes):
     assert duration_minutes > 0, 'duration_minutes must be positive'
     hours = duration_minutes // 60
     minutes = duration_minutes % 60
+    if hours > 0 and minutes == 30:
+        return f'{hours}.5h'
     if hours > 0 and minutes > 0:
         return f'{hours}h{minutes}m'
     if hours > 0:

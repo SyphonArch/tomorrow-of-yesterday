@@ -5,6 +5,7 @@ import sys
 import datetime
 import json
 import re
+from decimal import Decimal
 import helpers
 import termcolor
 
@@ -429,7 +430,7 @@ Type 'help' for a list of commands.
         else:
             duration = parse_duration(duration_input)
             if duration is None:
-                print('Duration must use compact minutes/hours, e.g. 30m, 1h, 1h30m, or 100m.\n')
+                print('Duration must use compact minutes/hours, e.g. 30m, 1h, 1.5h, 1h30m, or 100m.\n')
                 return
 
         tm.set_duration(task_id, duration)
@@ -823,7 +824,7 @@ def print_duration_format_hints(blank_behavior):
     else:
         print(" - Leave blank for no duration")
     print(" - Minutes: '30m' or '100m'")
-    print(" - Hours: '1h' or '2h'")
+    print(" - Hours: '1h', '1.5h', or '2h'")
     print(" - Hours and minutes: '1h30m' or '2h5m'")
 
 
@@ -839,6 +840,14 @@ def safe_input(prompt):
 def parse_duration(duration_input):
     """Parse a duration input and return integer minutes."""
     duration_input = duration_input.strip().lower()
+    decimal_hour_match = re.fullmatch(r'(\d+\.\d+)h', duration_input)
+    if decimal_hour_match:
+        hours = Decimal(decimal_hour_match.group(1))
+        minutes = hours * Decimal(60)
+        if minutes <= 0 or minutes != minutes.to_integral_value():
+            return None
+        return int(minutes)
+
     match = re.fullmatch(r'(?:(\d+)h)?(?:(\d+)m)?', duration_input)
     if not match:
         return None
