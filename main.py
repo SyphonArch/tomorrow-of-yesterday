@@ -4,6 +4,7 @@ import database
 import sys
 import datetime
 import json
+import re
 import helpers
 import termcolor
 
@@ -151,6 +152,26 @@ Type 'help' for a list of commands.
             if marker:
                 return f' {marker}'
             return ''
+
+        def duration_string(duration: int) -> str:
+            if duration == 0:
+                return '0m'
+            return helpers.format_duration(duration)
+
+        def day_duration_marker(tasks) -> str:
+            if not tasks:
+                return ''
+            completed_duration = sum(task['duration'] or 0 for task in tasks if task['status'] == 'completed')
+            scheduled_duration = sum(task['duration'] or 0 for task in tasks)
+            completed_count = sum(1 for task in tasks if task['status'] == 'completed')
+            if completed_count == 0:
+                return termcolor.colored(f'[{duration_string(scheduled_duration)}]', 'magenta')
+            if completed_count == len(tasks):
+                return termcolor.colored(f'[{duration_string(scheduled_duration)}]', 'green')
+            return termcolor.colored(
+                f'[{duration_string(completed_duration)}/{duration_string(scheduled_duration)}]',
+                'light_blue',
+            )
         # -----------------------------------
 
         today = datetime.date.today()
@@ -196,10 +217,12 @@ Type 'help' for a list of commands.
         for day_offset in range(offset_start, offset_end + 1):
             date = today + datetime.timedelta(days=day_offset)
             day_string = helpers.get_day_string(today, date)
-            print(f'// {day_string} //')
+            tasks = tm.get_tasks_for_date(date)
+            marker = day_duration_marker(tasks)
+            marker_suffix = f' {marker}' if marker else ''
+            print(f'// {day_string}{marker_suffix} //')
             print('-' * 40)
 
-            tasks = tm.get_tasks_for_date(date)
             if not tasks:
                 print('Nothing to do!\n')
             else:
@@ -323,12 +346,31 @@ Type 'help' for a list of commands.
             else:
                 print('Invalid date format. Please try again or enter "h" for hints.')
 
+        while True:
+            duration_input = safe_input("Enter duration in minutes or hours (optional, h for hints): ")
+            if duration_input is None:
+                return
+            duration_input = duration_input.strip()
+            if duration_input == '':
+                duration = None
+                break
+            if duration_input.lower() == 'h':
+                print_duration_format_hints('blank_no_duration')
+                continue
+            duration = parse_duration(duration_input)
+            if duration is not None:
+                break
+            else:
+                print('Invalid duration format. Please try again, leave blank, or enter "h" for hints.')
+
+        task_description = f'{helpers.format_duration(duration)} | {arg}' if duration else arg
+
         # Confirm the date or buffer before creating the task
         if date_or_buffer == 'buffer':
-            print(f'Add task "{arg}" to buffer?')
+            print(f'Add task "{task_description}" to buffer?')
         else:
             date = date_or_buffer
-            print(f'Schedule task "{arg}" to '
+            print(f'Schedule task "{task_description}" to '
                   f'{helpers.get_day_string(datetime.date.today(), date)}?')
 
         confirmation = safe_input('Press <enter> to confirm or Ctrl-C to abort.')
@@ -336,7 +378,7 @@ Type 'help' for a list of commands.
             return
 
         # Only create the task after a valid date or buffer is confirmed
-        task_id = tm.create_task(arg)
+        task_id = tm.create_task(arg, duration=duration)
 
         if date_or_buffer == 'buffer':
             print(f'Task {helpers.get_task_string(task_id)} left in buffer.')
@@ -368,6 +410,33 @@ Type 'help' for a list of commands.
         tm.set_priority(task_id, priority)
         stars = '⭐' * priority
         print(f'Priority for {helpers.get_task_string(task_id)} set to {stars if stars else "no stars"}.\n')
+
+    def do_duration(self, arg):
+        """Set duration for a task: duration <task_identifier> <duration|clear>"""
+        args = arg.split(maxsplit=1)
+        if len(args) != 2:
+            print('Usage: duration <task_identifier> <duration|clear>\n')
+            return
+
+        task_id = self.get_task_id(args[0])
+        if task_id is None:
+            print(f"Invalid task identifier '{args[0]}'\n")
+            return
+
+        duration_input = args[1].strip()
+        if duration_input.lower() in ('clear', 'none'):
+            duration = None
+        else:
+            duration = parse_duration(duration_input)
+            if duration is None:
+                print('Duration must use compact minutes/hours, e.g. 30m, 1h, 1h30m, or 100m.\n')
+                return
+
+        tm.set_duration(task_id, duration)
+        if duration is None:
+            print(f'Duration cleared for {helpers.get_task_string(task_id)}.\n')
+        else:
+            print(f'Duration for {helpers.get_task_string(task_id)} set to {helpers.format_duration(duration)}.\n')
 
     def do_completed(self, arg):
         """Mark task as completed: completed <task_identifier>"""
@@ -525,6 +594,13 @@ Type 'help' for a list of commands.
         made_irrelevant_count = 0
         made_buffered_count = 0
         incomplete_count = 0
+        scheduled_duration = 0
+        completed_that_day_duration = 0
+        completed_next_day_duration = 0
+        completed_another_day_duration = 0
+        made_irrelevant_duration = 0
+        made_buffered_duration = 0
+        incomplete_duration = 0
 
         all_tasks = {}
 
@@ -540,12 +616,17 @@ Type 'help' for a list of commands.
         # Evaluate the tasks
         for task_id, task in all_tasks.items():
             scheduled_count += 1
+            duration = task['duration'] or 0
+            scheduled_duration += duration
             if task['status'] == 'irrelevant':
                 made_irrelevant_count += 1
+                made_irrelevant_duration += duration
             elif task['status'] == 'buffered':
                 made_buffered_count += 1
+                made_buffered_duration += duration
             elif task['status'] == 'scheduled':
                 incomplete_count += 1
+                incomplete_duration += duration
             else:
                 assert task['status'] == 'completed', f"Task {task['id']} has invalid status {task['status']}"
                 # Get the first scheduled date
@@ -557,10 +638,13 @@ Type 'help' for a list of commands.
                 diff = scheduled_date - first_scheduled_date
                 if diff.days == 0:
                     completed_that_day_count += 1
+                    completed_that_day_duration += duration
                 elif diff.days == 1:
                     completed_next_day_count += 1
+                    completed_next_day_duration += duration
                 else:
                     completed_another_day_count += 1
+                    completed_another_day_duration += duration
 
         print(f'Evaluation for the interval {offset_start} to {offset_end} days from today:')
         print()
@@ -569,7 +653,16 @@ Type 'help' for a list of commands.
         if scheduled_count == 0:
             print("No tasks scheduled in the interval.")
         else:
+            completed_count = completed_that_day_count + completed_next_day_count + completed_another_day_count
+            completed_duration = (
+                completed_that_day_duration
+                + completed_next_day_duration
+                + completed_another_day_duration
+            )
+
             print()
+            print(f'Completed total:                 {completed_count:>6} '
+                  f'({(completed_count / scheduled_count * 100):.0f}%)')
             print(f'Completed on first day:          {completed_that_day_count:>6} '
                   f'({(completed_that_day_count / scheduled_count * 100):.0f}%)')
             print(f'Completed on next day:           {completed_next_day_count:>6} '
@@ -582,6 +675,34 @@ Type 'help' for a list of commands.
                   f'({(made_buffered_count / scheduled_count * 100):.0f}%)')
             print(f'Incomplete:                      {incomplete_count:>6} '
                   f'({(incomplete_count / scheduled_count * 100):.0f}%)')
+            print()
+
+            def format_duration_or_zero(duration: int) -> str:
+                if duration == 0:
+                    return '0m'
+                return helpers.format_duration(duration)
+
+            def duration_percent(duration: int) -> str:
+                if scheduled_duration == 0:
+                    return 'n/a'
+                return f'{(duration / scheduled_duration * 100):.0f}%'
+
+            print(f'Total duration scheduled:        {format_duration_or_zero(scheduled_duration):>6}')
+            print()
+            print(f'Completed total:                 {format_duration_or_zero(completed_duration):>6} '
+                  f'({duration_percent(completed_duration)})')
+            print(f'Completed on first day:          {format_duration_or_zero(completed_that_day_duration):>6} '
+                  f'({duration_percent(completed_that_day_duration)})')
+            print(f'Completed on next day:           {format_duration_or_zero(completed_next_day_duration):>6} '
+                  f'({duration_percent(completed_next_day_duration)})')
+            print(f'Completed on another day:        {format_duration_or_zero(completed_another_day_duration):>6} '
+                  f'({duration_percent(completed_another_day_duration)})')
+            print(f'Made irrelevant:                 {format_duration_or_zero(made_irrelevant_duration):>6} '
+                  f'({duration_percent(made_irrelevant_duration)})')
+            print(f'Buffered:                        {format_duration_or_zero(made_buffered_duration):>6} '
+                  f'({duration_percent(made_buffered_duration)})')
+            print(f'Incomplete:                      {format_duration_or_zero(incomplete_duration):>6} '
+                  f'({duration_percent(incomplete_duration)})')
 
     def do_task(self, arg):
         """Get information about a task: task <task_identifier>"""
@@ -603,6 +724,9 @@ Type 'help' for a list of commands.
         print(f'    Created on: {task["created_date"]:>20}')
         print(f'    Status: {task["status"]:>24}')
         print(f'    Priority: {task["priority"]:>22}')
+        duration = task['duration'] if 'duration' in task.keys() else None
+        duration_string = helpers.format_duration(duration) if duration else 'none'
+        print(f'    Duration: {duration_string:>22}')
         if task['status'] != 'buffered':
             print(f'    Scheduled for: {task["scheduled_date"]:>17}')
 
@@ -616,7 +740,7 @@ Type 'help' for a list of commands.
         print()
 
     def do_modify_description(self, arg):
-        """Modify a task's description: modify <task_identifier>"""
+        """Modify a task's description and duration: modify <task_identifier>"""
         task_identifier = arg
 
         task_id = self.get_task_id(task_identifier)
@@ -625,11 +749,33 @@ Type 'help' for a list of commands.
             return
 
         print(f'Modifying task {helpers.get_task_string(task_id)}...')
-        new_description = safe_input('Enter the new description: ')
+        new_description = safe_input('Description [keep]: ')
         if new_description is None:
             return
+        new_description = new_description.strip()
 
-        tm.modify_description(task_id, new_description)
+        while True:
+            new_duration = safe_input('Duration [keep, clear, h]: ')
+            if new_duration is None:
+                return
+            new_duration = new_duration.strip()
+            if new_duration == '':
+                duration = tm.get_task(task_id)['duration']
+                break
+            if new_duration.lower() == 'h':
+                print_duration_format_hints('blank_keep')
+                continue
+            if new_duration.lower() in ('clear', 'none'):
+                duration = None
+                break
+            duration = parse_duration(new_duration)
+            if duration is not None:
+                break
+            print('Invalid duration format. Please try again, leave blank, clear, or enter "h" for hints.')
+
+        if new_description:
+            tm.modify_description(task_id, new_description)
+        tm.set_duration(task_id, duration)
         print(f'Task modified to {helpers.get_task_string(task_id)}.\n')
 
     def clean_bindings(self):
@@ -667,6 +813,20 @@ def print_date_format_hints():
     print(" - Day of the week (first three letters, e.g., 'mon', 'tue')")
 
 
+def print_duration_format_hints(blank_behavior):
+    """Prints the supported duration formats."""
+    assert blank_behavior in ('blank_keep', 'blank_no_duration'), 'invalid blank behavior'
+    print("Supported duration formats:")
+    if blank_behavior == 'blank_keep':
+        print(" - Leave blank to keep the current duration")
+        print(" - Enter 'clear' to remove duration")
+    else:
+        print(" - Leave blank for no duration")
+    print(" - Minutes: '30m' or '100m'")
+    print(" - Hours: '1h' or '2h'")
+    print(" - Hours and minutes: '1h30m' or '2h5m'")
+
+
 def safe_input(prompt):
     """Input method that handles KeyboardInterrupt exceptions."""
     try:
@@ -674,6 +834,25 @@ def safe_input(prompt):
     except KeyboardInterrupt:
         print('\nOperation cancelled.\n')
         return None
+
+
+def parse_duration(duration_input):
+    """Parse a duration input and return integer minutes."""
+    duration_input = duration_input.strip().lower()
+    match = re.fullmatch(r'(?:(\d+)h)?(?:(\d+)m)?', duration_input)
+    if not match:
+        return None
+
+    hours_text, minutes_text = match.groups()
+    if hours_text is None and minutes_text is None:
+        return None
+
+    hours = int(hours_text) if hours_text is not None else 0
+    minutes = int(minutes_text) if minutes_text is not None else 0
+    total_minutes = hours * 60 + minutes
+    if total_minutes <= 0:
+        return None
+    return total_minutes
 
 
 def parse_date_or_buffer(date_input):

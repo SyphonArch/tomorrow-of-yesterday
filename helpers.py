@@ -2,11 +2,27 @@ import task_manager as tm
 import database
 
 
+def format_duration(duration_minutes):
+    """Format integer minutes as the compact duration prefix used in task strings."""
+    assert isinstance(duration_minutes, int), 'duration_minutes must be an integer'
+    assert duration_minutes > 0, 'duration_minutes must be positive'
+    hours = duration_minutes // 60
+    minutes = duration_minutes % 60
+    if hours > 0 and minutes > 0:
+        return f'{hours}h{minutes}m'
+    if hours > 0:
+        return f'{hours}h'
+    return f'{minutes}m'
+
+
 def get_task_string(task_id):
     """Return the string representation of the task with the given ID."""
     task = tm.get_task(task_id)
     if task is None:
         return f'[#{task_id}: Task not found]'
+    duration = task['duration'] if 'duration' in task.keys() else None
+    if duration:
+        return f'[#{task_id}: {format_duration(duration)} | {task["description"]}]'
     return f'[#{task_id}: {task["description"]}]'
 
 

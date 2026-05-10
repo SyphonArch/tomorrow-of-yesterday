@@ -2,19 +2,21 @@ from database import get_connection
 import datetime
 
 
-def create_task(description, priority=0):
+def create_task(description, priority=0, duration=None):
     """Create a new task with the given description.
     Task is added to the buffer by default."""
     assert isinstance(priority, int), 'priority must be an integer'
     assert priority >= 0, 'priority must be non-negative'
+    assert duration is None or isinstance(duration, int), 'duration must be an integer or None'
+    assert duration is None or duration > 0, 'duration must be positive'
 
     conn = get_connection()
     c = conn.cursor()
 
     c.execute('''
-    INSERT INTO tasks (description, created_date, status, priority)
-    VALUES (?, DATE('now'), 'created', ?)
-    ''', (description, priority))
+    INSERT INTO tasks (description, created_date, status, priority, duration)
+    VALUES (?, DATE('now'), 'created', ?, ?)
+    ''', (description, priority, duration))
     task_id = c.lastrowid
 
     conn.commit()
@@ -280,6 +282,24 @@ def modify_description(task_id, description):
     SET description = ?
     WHERE id = ?
     ''', (description, task_id))
+
+    conn.commit()
+    conn.close()
+
+
+def set_duration(task_id, duration):
+    """Set the duration of the task with the given ID."""
+    assert duration is None or isinstance(duration, int), 'duration must be an integer or None'
+    assert duration is None or duration > 0, 'duration must be positive'
+
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute('''
+    UPDATE tasks
+    SET duration = ?
+    WHERE id = ?
+    ''', (duration, task_id))
 
     conn.commit()
     conn.close()

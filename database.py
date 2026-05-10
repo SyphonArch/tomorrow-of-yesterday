@@ -20,6 +20,7 @@ def setup_database():
         created_date TEXT,
         status TEXT, -- 'scheduled', 'completed', 'irrelevant', 'buffered'
         priority INTEGER NOT NULL DEFAULT 0,
+        duration INTEGER,
         scheduled_date TEXT,
         latest_event_id INTEGER,
         FOREIGN KEY (latest_event_id) REFERENCES task_events (event_id)
@@ -36,6 +37,11 @@ def setup_database():
         FOREIGN KEY (task_id) REFERENCES tasks (id)
     )
     ''')
+
+    c.execute('PRAGMA table_info(tasks)')
+    task_columns = {row['name'] for row in c.fetchall()}
+    if 'duration' not in task_columns:
+        c.execute('ALTER TABLE tasks ADD COLUMN duration INTEGER')
 
     conn.commit()
     conn.close()
