@@ -160,18 +160,19 @@ Type 'help' for a list of commands.
             return helpers.format_duration(duration)
 
         def day_duration_marker(tasks) -> str:
-            if not tasks:
+            active_tasks = [task for task in tasks if task['status'] != 'irrelevant']
+            if not active_tasks:
                 return ''
-            completed_duration = sum(task['duration'] or 0 for task in tasks if task['status'] == 'completed')
-            scheduled_duration = sum(task['duration'] or 0 for task in tasks)
-            completed_count = sum(1 for task in tasks if task['status'] == 'completed')
+            completed_duration = sum(task['duration'] or 0 for task in active_tasks if task['status'] == 'completed')
+            scheduled_duration = sum(task['duration'] or 0 for task in active_tasks)
+            completed_count = sum(1 for task in active_tasks if task['status'] == 'completed')
             if completed_count == 0:
                 return termcolor.colored(f'[{duration_string(scheduled_duration)}]', 'magenta')
-            if completed_count == len(tasks):
+            if completed_count == len(active_tasks):
                 return termcolor.colored(f'[{duration_string(scheduled_duration)}]', 'green')
             return termcolor.colored(
                 f'[{duration_string(completed_duration)}/{duration_string(scheduled_duration)}]',
-                'light_blue',
+                'magenta',
             )
         # -----------------------------------
 
