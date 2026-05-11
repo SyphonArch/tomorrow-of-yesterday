@@ -575,16 +575,19 @@ Type 'help' for a list of commands.
                   f'{helpers.get_day_string(datetime.date.today(), date)}.\n')
 
     def do_evaluate(self, arg):
-        """Evaluate how well I did in the given interval: evaluate <offset_start> <offset_end>"""
+        """Evaluate how well I did in the given interval: evaluate <offset_start> <offset_end> or evaluate w"""
         args = arg.split()
-        if len(args) != 2:
-            print('Usage: evaluate <offset_start> <offset_end>\n')
+        if args == ['w']:
+            offset_start, offset_end = -6, 0
+        elif len(args) != 2:
+            print('Usage: evaluate <offset_start> <offset_end> or evaluate w\n')
             return
-        try:
-            offset_start, offset_end = map(int, args)
-        except ValueError:
-            print('Usage: evaluate <offset_start> <offset_end>\n')
-            return
+        else:
+            try:
+                offset_start, offset_end = map(int, args)
+            except ValueError:
+                print('Usage: evaluate <offset_start> <offset_end> or evaluate w\n')
+                return
         if offset_start > offset_end:
             print('offset_start must be less than or equal to offset_end')
             return
