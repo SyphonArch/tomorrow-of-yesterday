@@ -348,7 +348,7 @@ Type 'help' for a list of commands.
                 print('Invalid date format. Please try again or enter "h" for hints.')
 
         while True:
-            duration_input = safe_input("Enter duration in minutes or hours (optional, h for hints): ")
+            duration_input = safe_input("Duration [optional, h]: ")
             if duration_input is None:
                 return
             duration_input = duration_input.strip()
@@ -362,7 +362,7 @@ Type 'help' for a list of commands.
             if duration is not None:
                 break
             else:
-                print('Invalid duration format. Please try again, leave blank, or enter "h" for hints.')
+                print('Invalid duration. Use h for hints.')
 
         task_description = f'{helpers.format_duration(duration)} | {arg}' if duration else arg
 
@@ -430,7 +430,7 @@ Type 'help' for a list of commands.
         else:
             duration = parse_duration(duration_input)
             if duration is None:
-                print('Duration must use hours/minutes, e.g. 4.5, 30m, 1h, 1.5h, 1h30m, or 100m.\n')
+                print('Invalid duration. Examples: 4.5, 30m, 1h30m.\n')
                 return
 
         tm.set_duration(task_id, duration)
@@ -755,7 +755,7 @@ Type 'help' for a list of commands.
         new_description = new_description.strip()
 
         while True:
-            new_duration = safe_input('Duration [keep, clear, h]: ')
+            new_duration = safe_input('Duration [keep/clear/h]: ')
             if new_duration is None:
                 return
             new_duration = new_duration.strip()
@@ -771,7 +771,7 @@ Type 'help' for a list of commands.
             duration = parse_duration(new_duration)
             if duration is not None:
                 break
-            print('Invalid duration format. Please try again, leave blank, clear, or enter "h" for hints.')
+            print('Invalid duration. Use h for hints.')
 
         if new_description:
             tm.modify_description(task_id, new_description)
