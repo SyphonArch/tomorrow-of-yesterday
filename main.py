@@ -5,6 +5,7 @@ import sys
 import datetime
 import json
 import re
+import unicodedata
 from decimal import Decimal
 import helpers
 import termcolor
@@ -22,11 +23,6 @@ except ImportError:
 
 
 class ToYCLI(cmd.Cmd):
-    intro = """##############################################
-Welcome to ToY, your personal task scheduler!
-Type 'help' for a list of commands.
-##############################################
-"""
     prompt = '##############################################\nToY> '
 
     no_shortcuts = ['setup', 'EOF', 'remove']  # Commands that should not have shortcuts
@@ -36,8 +32,17 @@ Type 'help' for a list of commands.
         self.shortcuts = self.generate_shortcuts()
         self.bindings = {}
         database.setup_database()  # Create the database if it doesn't exist
+        self.intro = self.build_intro()
         with open('config.json', 'r') as f:
             self.config = json.load(f)
+
+    def build_intro(self):
+        welcome_message = database.get_setting('welcome_message')
+        lines = welcome_message.splitlines()
+        width = max(46, *(display_width(line) for line in lines))
+        border = '#' * width
+        centered_lines = [center_display(line, width) for line in lines]
+        return '\n'.join([border, *centered_lines, border]) + '\n'
 
     def cmdloop(self, intro=None):
         """Override the cmdloop method to list tasks at startup.
@@ -746,6 +751,17 @@ Type 'help' for a list of commands.
 
         print()
 
+    def do_welcome(self, arg):
+        """View or set the welcome message: welcome <message>"""
+        message = arg.strip()
+        if not message:
+            print(f'Welcome message: {database.get_setting("welcome_message")}\n')
+            return
+
+        database.set_setting('welcome_message', message)
+        self.intro = self.build_intro()
+        print(f'Welcome message set to: {message}\n')
+
     def do_modify_description(self, arg):
         """Modify a task's description and duration: modify <task_identifier>"""
         task_identifier = arg
@@ -833,6 +849,24 @@ def print_duration_format_hints(blank_behavior):
     print(" - Minutes: '30m' or '100m'")
     print(" - Hours: '1h', '1.5h', or '2h'")
     print(" - Hours and minutes: '1h30m' or '2h5m'")
+
+
+def display_width(text):
+    """Approximate terminal display width for centered intro text."""
+    width = 0
+    for char in text:
+        if unicodedata.combining(char):
+            continue
+        width += 2 if unicodedata.east_asian_width(char) in ('F', 'W') else 1
+    return width
+
+
+def center_display(text, width):
+    """Center text using display-cell width instead of Python character count."""
+    padding = max(0, width - display_width(text))
+    left_padding = padding // 2
+    right_padding = padding - left_padding
+    return (' ' * left_padding) + text + (' ' * right_padding)
 
 
 def safe_input(prompt):
