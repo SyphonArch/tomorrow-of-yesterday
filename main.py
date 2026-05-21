@@ -870,12 +870,15 @@ def center_display(text, width):
 
 
 def safe_input(prompt):
-    """Input method that handles KeyboardInterrupt exceptions."""
+    """Input method that handles interrupted or unavailable terminal input."""
     try:
         return input(prompt)
     except KeyboardInterrupt:
         print('\nOperation cancelled.\n')
         return None
+    except (EOFError, OSError):
+        print('\nInput stream closed; exiting.\n')
+        raise SystemExit(0)
 
 
 def parse_duration(duration_input):
