@@ -93,6 +93,10 @@ class ToYCLI(cmd.Cmd):
                 line = ' '.join(parts)
         return line
 
+    def emptyline(self):
+        """Do nothing on blank input instead of repeating the last command."""
+        pass
+
     def do_list(self, arg):
         """List tasks: list <offset_start> <optional:offset_end>, list w, or simply list"""
         if arg:
