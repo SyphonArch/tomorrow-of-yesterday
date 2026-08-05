@@ -22,7 +22,7 @@ def setup_database():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         description TEXT,
         created_date TEXT,
-        status TEXT, -- 'scheduled', 'completed', 'irrelevant', 'buffered'
+        status TEXT, -- 'scheduled', 'completed', 'missed', 'irrelevant', 'buffered'
         priority INTEGER NOT NULL DEFAULT 0,
         duration INTEGER,
         scheduled_date TEXT,

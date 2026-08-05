@@ -70,6 +70,35 @@ def mark_task_completed(task_id):
     conn.close()
 
 
+def mark_task_missed(task_id):
+    """Close a scheduled task without completing or rescheduling it."""
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute('''
+    SELECT status
+    FROM tasks
+    WHERE id = ?
+    ''', (task_id,))
+    status = c.fetchone()
+    assert status[0] == 'scheduled', 'You can only mark a task as missed if it is scheduled'
+
+    c.execute('''
+    INSERT INTO task_events (task_id, event_type, event_date)
+    VALUES (?, 'missed', DATE('now'))
+    ''', (task_id,))
+    event_id = c.lastrowid
+
+    c.execute('''
+    UPDATE tasks
+    SET latest_event_id = ?, status = 'missed'
+    WHERE id = ?
+    ''', (event_id, task_id))
+
+    conn.commit()
+    conn.close()
+
+
 def mark_task_irrelevant(task_id):
     """Mark the task with the given ID as irrelevant."""
     conn = get_connection()

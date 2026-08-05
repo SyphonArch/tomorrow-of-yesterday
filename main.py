@@ -25,7 +25,7 @@ except ImportError:
 class ToYCLI(cmd.Cmd):
     prompt = '##############################################\nToY> '
 
-    no_shortcuts = ['setup', 'EOF', 'remove']  # Commands that should not have shortcuts
+    no_shortcuts = ['EOF', 'remove']  # Commands that should not have shortcuts
 
     def __init__(self):
         super().__init__()
@@ -172,7 +172,7 @@ class ToYCLI(cmd.Cmd):
             return helpers.format_duration(duration)
 
         def day_duration_marker(tasks) -> str:
-            active_tasks = [task for task in tasks if task['status'] != 'irrelevant']
+            active_tasks = [task for task in tasks if task['status'] not in ('irrelevant', 'missed')]
             if not active_tasks:
                 return ''
             completed_duration = sum(task['duration'] or 0 for task in active_tasks if task['status'] == 'completed')
@@ -240,17 +240,17 @@ class ToYCLI(cmd.Cmd):
             if not tasks:
                 print('Nothing to do!\n')
             else:
-                # Sort: scheduled → irrelevant → completed (your original order)
+                # Keep open tasks first and completed tasks last.
                 tasks = sorted(
                     tasks,
                     key=lambda x: (
-                        0 if x['status'] == 'scheduled' else 1 if x['status'] == 'irrelevant' else 2,
+                        {'scheduled': 0, 'missed': 1, 'irrelevant': 2, 'completed': 3}[x['status']],
                         -x['priority'],
                         x['id']
                     )
                 )
 
-                remaining_scheduled_task_count = 0
+                all_active_tasks_completed = True
 
                 for i, task in enumerate(tasks):
                     task_id = task['id']
@@ -259,16 +259,19 @@ class ToYCLI(cmd.Cmd):
                     bindings[task_identifier] = task_id
                     status = f'[{task["status"]}]' if task['status'] != 'scheduled' else ''
                     if task['status'] == 'scheduled':
-                        remaining_scheduled_task_count += 1
+                        all_active_tasks_completed = False
                         colored = termcolor.colored(base, 'magenta') + priority_and_resched(task, task_id)
                     elif task['status'] == 'completed':
                         colored = termcolor.colored(base, 'green') + priority_and_resched(task, task_id)
+                    elif task['status'] == 'missed':
+                        all_active_tasks_completed = False
+                        colored = termcolor.colored(base, 'light_grey') + priority_and_resched(task, task_id)
                     else:
                         assert task['status'] == 'irrelevant'
                         colored = termcolor.colored(base, 'blue') + priority_and_resched(task, task_id)
                     status_suffix = f' {status}' if status else ''
                     print(f'{task_identifier}. {colored}{status_suffix}')
-                if remaining_scheduled_task_count == 0:
+                if all_active_tasks_completed:
                     print(termcolor.colored('~ You have completed the day! Yay! >.< ~', 'green', 'on_black'))
 
             # --- Rescheduled tasks footer for this day ---
@@ -493,6 +496,25 @@ class ToYCLI(cmd.Cmd):
         tm.mark_task_irrelevant(task_id)
         print(f'Task {helpers.get_task_string(task_id)} marked as irrelevant.\n')
 
+    def do_missed(self, arg):
+        """Close an uncompleted task without rescheduling it: missed <task_identifier>"""
+        task_id = self.get_task_id(arg)
+        if task_id is None:
+            print(f"Invalid task identifier '{arg}'\n")
+            return
+
+        task = tm.get_task(task_id)
+        if task['status'] != 'scheduled':
+            print(f'Task {helpers.get_task_string(task_id)} needs to be scheduled to be marked as missed.\n')
+            return
+
+        confirmation = safe_input(f'Mark {helpers.get_task_string(task_id)} missed? [enter/Ctrl-C] ')
+        if confirmation is None:
+            return
+
+        tm.mark_task_missed(task_id)
+        print(f'Task {helpers.get_task_string(task_id)} marked as missed.\n')
+
     def do_buffer(self, arg):
         """Move task to buffer: buffer <task_identifier>"""
         task_id = self.get_task_id(arg)
@@ -608,6 +630,7 @@ class ToYCLI(cmd.Cmd):
         completed_next_day_count = 0
         completed_another_day_count = 0
         made_irrelevant_count = 0
+        missed_count = 0
         made_buffered_count = 0
         incomplete_count = 0
         scheduled_duration = 0
@@ -615,6 +638,7 @@ class ToYCLI(cmd.Cmd):
         completed_next_day_duration = 0
         completed_another_day_duration = 0
         made_irrelevant_duration = 0
+        missed_duration = 0
         made_buffered_duration = 0
         incomplete_duration = 0
 
@@ -637,6 +661,9 @@ class ToYCLI(cmd.Cmd):
             if task['status'] == 'irrelevant':
                 made_irrelevant_count += 1
                 made_irrelevant_duration += duration
+            elif task['status'] == 'missed':
+                missed_count += 1
+                missed_duration += duration
             elif task['status'] == 'buffered':
                 made_buffered_count += 1
                 made_buffered_duration += duration
@@ -685,6 +712,8 @@ class ToYCLI(cmd.Cmd):
                   f'({(completed_next_day_count / scheduled_count * 100):.0f}%)')
             print(f'Completed on another day:        {completed_another_day_count:>6} '
                   f'({(completed_another_day_count / scheduled_count * 100):.0f}%)')
+            print(f'Missed:                          {missed_count:>6} '
+                  f'({(missed_count / scheduled_count * 100):.0f}%)')
             print(f'Made irrelevant:                 {made_irrelevant_count:>6} '
                   f'({(made_irrelevant_count / scheduled_count * 100):.0f}%)')
             print(f'Buffered:                        {made_buffered_count:>6} '
@@ -713,6 +742,8 @@ class ToYCLI(cmd.Cmd):
                   f'({duration_percent(completed_next_day_duration)})')
             print(f'Completed on another day:        {format_duration_or_zero(completed_another_day_duration):>6} '
                   f'({duration_percent(completed_another_day_duration)})')
+            print(f'Missed:                          {format_duration_or_zero(missed_duration):>6} '
+                  f'({duration_percent(missed_duration)})')
             print(f'Made irrelevant:                 {format_duration_or_zero(made_irrelevant_duration):>6} '
                   f'({duration_percent(made_irrelevant_duration)})')
             print(f'Buffered:                        {format_duration_or_zero(made_buffered_duration):>6} '
@@ -755,19 +786,8 @@ class ToYCLI(cmd.Cmd):
 
         print()
 
-    def do_welcome(self, arg):
-        """View or set the welcome message: welcome <message>"""
-        message = arg.strip()
-        if not message:
-            print(f'Welcome message: {database.get_setting("welcome_message")}\n')
-            return
-
-        database.set_setting('welcome_message', message)
-        self.intro = self.build_intro()
-        print(f'Welcome message set to: {message}\n')
-
-    def do_modify_description(self, arg):
-        """Modify a task's description and duration: modify <task_identifier>"""
+    def do_update(self, arg):
+        """Update a task's description and duration: update <task_identifier>"""
         task_identifier = arg
 
         task_id = self.get_task_id(task_identifier)
