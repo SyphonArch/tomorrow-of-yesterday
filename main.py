@@ -457,6 +457,10 @@ class ToYCLI(cmd.Cmd):
 
     def do_completed(self, arg):
         """Mark task as completed: completed <task_identifier>"""
+        if arg == '':
+            print('Usage: completed <task_identifier>\n')
+            return
+
         task_id = self.get_task_id(arg)
         if task_id is None:
             print(f"Invalid task identifier '{arg}'\n")
@@ -477,6 +481,10 @@ class ToYCLI(cmd.Cmd):
 
     def do_irrelevant(self, arg):
         """Mark task as irrelevant: irrelevant <task_identifier>"""
+        if arg == '':
+            print('Usage: irrelevant <task_identifier>\n')
+            return
+
         task_id = self.get_task_id(arg)
         if task_id is None:
             print(f"Invalid task identifier '{arg}'\n")
@@ -498,6 +506,10 @@ class ToYCLI(cmd.Cmd):
 
     def do_missed(self, arg):
         """Close an uncompleted task without rescheduling it: missed <task_identifier>"""
+        if arg == '':
+            print('Usage: missed <task_identifier>\n')
+            return
+
         task_id = self.get_task_id(arg)
         if task_id is None:
             print(f"Invalid task identifier '{arg}'\n")
@@ -517,6 +529,10 @@ class ToYCLI(cmd.Cmd):
 
     def do_buffer(self, arg):
         """Move task to buffer: buffer <task_identifier>"""
+        if arg == '':
+            print('Usage: buffer <task_identifier>\n')
+            return
+
         task_id = self.get_task_id(arg)
         if task_id is None:
             print(f"Invalid task identifier '{arg}'\n")
@@ -539,6 +555,10 @@ class ToYCLI(cmd.Cmd):
 
     def do_remove(self, arg):
         """Remove a task: remove <task_identifier>"""
+        if arg == '':
+            print('Usage: remove <task_identifier>\n')
+            return
+
         task_id = self.get_task_id(arg)
         if task_id is None:
             print(f"Invalid task identifier '{arg}'\n")
@@ -558,6 +578,10 @@ class ToYCLI(cmd.Cmd):
 
     def do_schedule(self, arg):
         """Schedule a task: schedule <task_identifier>"""
+        if arg == '':
+            print('Usage: schedule <task_identifier>\n')
+            return
+
         task_id = self.get_task_id(arg)
         if task_id is None:
             print(f"Invalid task identifier '{arg}'\n")
@@ -788,6 +812,10 @@ class ToYCLI(cmd.Cmd):
 
     def do_update(self, arg):
         """Update a task's description and duration: update <task_identifier>"""
+        if arg == '':
+            print('Usage: update <task_identifier>\n')
+            return
+
         task_identifier = arg
 
         task_id = self.get_task_id(task_identifier)
